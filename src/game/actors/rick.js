@@ -38,8 +38,9 @@ export function makeRick() {
   // held weapon — parented to the GROUP (native scale) and each frame snapped to the hand bone's position
   // while pointing forward (+Z = the way Rick faces/aims). Falls back to a fixed side position if unrigged.
   const _tmp = new THREE.Vector3();
-  let gun = null, gunKind = null;
+  let gun = null, gunKind = null, laserHands = false;
   const setWeapon = (mode) => {
+    laserHands = (mode === "handlaser");                       // palm-laser: hold both hands FORWARD (laser-ready), no held gun
     const k = gunKindForMode(mode); if (k === gunKind) return; gunKind = k;
     if (gun) { group.remove(gun); gun = null; }
     if (mode === "handlaser") return;                          // Rick's innate palm-laser — no held weapon, fires from the hand
@@ -87,7 +88,7 @@ export function makeRick() {
         dW += (((dancing && dance) ? 1 : 0) - dW) * Math.min(1, dt * 8);           // deploy-screen Salsa (full body)
         jpW += (((airborne && jump && thrust <= 0 && !dancing) ? 1 : 0) - jpW) * Math.min(1, dt * 12); // airborne jump pose (full body)
         const airPose = jetting ? 1 : 0;                                           // hovering/gliding → dangling idle body (unless aiming)
-        const aim = fW;                                                            // firing → gun-aim upper body, OVERRIDES the hover pose
+        const aim = laserHands ? 1 : fW;                                           // hand-laser → both hands held FORWARD always; else firing → gun-aim
         const g2 = 1 - dW, gj = 1 - jpW;                                            // g2 fades everything under the dance; gj under the jump
         const m = mW * (1 - airPose);                                              // locomotion only on the ground
         if (dance) dance.setEffectiveWeight(dW);

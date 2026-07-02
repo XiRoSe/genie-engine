@@ -39,7 +39,7 @@ export class VFX {
     this.tracers = this._pool(20, tg, () => noOutline(new THREE.MeshBasicMaterial({ color: 0xfff0bf, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })));
     // red enemy laser beams (thin glowing cylinders)
     const eg = new THREE.CylinderGeometry(0.13, 0.13, 1, 6); eg.translate(0, 0.5, 0);
-    this.enemyBeams = this._pool(12, eg, () => noOutline(new THREE.MeshBasicMaterial({ color: 0xff2a1a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })));
+    this.enemyBeams = this._pool(28, eg, () => noOutline(new THREE.MeshBasicMaterial({ color: 0xff2a1a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }))); // beam + bright core = 2 per laserBeam
     // expanding shockwave rings (billboarded)
     const ring = new THREE.RingGeometry(0.55, 0.72, 28);
     this.rings = this._pool(4, ring, () => noOutline(new THREE.MeshBasicMaterial({ color: 0xffe6b0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })));
@@ -231,7 +231,11 @@ export class VFX {
     const beam = this._next(this.enemyBeams);
     beam.mesh.position.copy(a); beam.mesh.quaternion.setFromUnitVectors(this._up, this._dir.normalize()); beam.mesh.scale.set(th, len, th);
     beam.mesh.material.color.setHex(color); beam.mesh.visible = true; beam.mesh.material.opacity = bad ? 0.98 : 0.85; beam.life = beam.max = bad ? 0.12 : 0.1;
-    this.tracer(a, b); // bright white-hot core down the centre
+    // bright inner CORE tinted from the beam colour (NOT the warm bullet tracer, which reads yellow) → the bolt glows in its true colour
+    const core = this._next(this.enemyBeams);
+    core.mesh.position.copy(a); core.mesh.quaternion.copy(beam.mesh.quaternion); core.mesh.scale.set(th * 0.42, len, th * 0.42);
+    core.mesh.material.color.copy((this._c0 || (this._c0 = new THREE.Color())).setHex(color).lerp((this._cW || (this._cW = new THREE.Color(0xffffff))), 0.55));
+    core.mesh.visible = true; core.mesh.material.opacity = 1; core.life = core.max = beam.max;
     const s = sizeScale;
     if (bad) { this._flash(a, 0.9 * s, 0xffffff); this._flash(a, 1.5 * s, color); this._flash(b, 1.3 * s, 0xffffff); this._flash(b, 2.2 * s, color); }
     else { this._flash(a, 0.4 * s, 0xffffff); this._flash(b, 0.75 * s, color); }

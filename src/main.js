@@ -411,7 +411,7 @@ class Game {
 
   _weaponName(mode) {
     if (this.cfg.weaponNames && this.cfg.weaponNames[mode]) return this.cfg.weaponNames[mode]; // per-level sci-fi names
-    return { rifle: "MK-4 CARBINE", smg: "SMG", minigun: "MINIGUN", burst: "BURST RIFLE", railgun: "RAILGUN", sword: "ARC BLADE", shotgun: "PULSE SHOTGUN", flak: "FLAK CANNON", launcher: "MISSILE LAUNCHER", plasma: "PLASMA CANNON", laser: "PORTAL GUN" }[mode] || "MK-4 CARBINE";
+    return { handlaser: "PALM LASERS", rifle: "MK-4 CARBINE", smg: "SMG", minigun: "MINIGUN", burst: "BURST RIFLE", railgun: "RAILGUN", sword: "ARC BLADE", shotgun: "PULSE SHOTGUN", flak: "FLAK CANNON", launcher: "MISSILE LAUNCHER", plasma: "PLASMA CANNON", laser: "PORTAL GUN" }[mode] || "MK-4 CARBINE";
   }
 
   // 3rd-person: the engine controller already orbits the camera (controller.view === "third"). Here we just
@@ -993,7 +993,7 @@ class Game {
     const wm = this.weapon.mode;
     const a = this.weapon.A[wm], reloading = this.weapon.reloading && this.weapon._reloadMode === wm;
     if (wm === "launcher") this.hud.setAmmo(this.weapon.rockets, null, false);
-    else if (wm === "sword") this.hud.setAmmo("∞", null, false);
+    else if (wm === "sword" || wm === "handlaser") this.hud.setAmmo("∞", null, false); // palm-lasers are infinite
     else if (a) this.hud.setAmmo(a.mag, a.reserve, reloading); // mag / reserve (with reload)
     else this.hud.setAmmo(this.weapon.A.rifle.mag, this.weapon.A.rifle.reserve, this.weapon.reloading);
     this.hud.setHealth(this.health, this.cfg.player.maxHealth);
