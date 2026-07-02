@@ -252,7 +252,7 @@ class Game {
     if (this.state === "intro" || this._introDone) return;
     this._menuLightsOff(); // drop the deploy-screen fill once we commit to the mission
     if (this.playerModel && this.playerModel.setDancing) this.playerModel.setDancing(false); // stop the Salsa, time to fight
-    trackStart(); // count a play (the moment they commit to the mission)
+    trackStart(this.levelDef.id || this.levelDef.name, this.levelDef.name); // count a play for THIS game (the moment they commit)
     if (!this.cfg.intro.enabled) { // NO cinematic — drop straight into the fight with a dramatic Pacific Rim swell
       this._introDone = true; this.audio.stopSalsaMusic?.();
       if (this._thirdPerson) {
