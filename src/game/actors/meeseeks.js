@@ -20,7 +20,7 @@ export class Meeseeks {
     this.dead = false; this.counted = false; this.removable = false;
     this.aggro = false; this.aggroRange = spawn.aggro || (this.giant ? 60 : this.huge ? 46 : 34);
     this.yaw = 0; this._atkCd = Math.random() * 1.5; this._t = Math.random() * 6; this._walkW = 0;
-    this.sc = this.giant ? 22.8 : this.huge ? 7.6 : 1.0;          // giant = 3x the huge kaiju
+    this.sc = this.giant ? 11.4 : this.huge ? 7.6 : 1.0;          // mega/giant Meeseeks (halved from 22.8 — still a kaiju)
 
     this.group = new THREE.Group(); this.group.position.copy(this.pos); scene.add(this.group);
     this._invScale = 1;
@@ -131,7 +131,7 @@ export class Meeseeks {
   }
 
   _blocked(x, z) {
-    const minTop = this.giant ? 8 : 0.6;  // the GIANT tramples everything (rocks/props) — only tall BUILDINGS stop it
+    const minTop = this.giant ? 3.0 : 0.6;  // the GIANT passes trees/props/rocks (short colliders) — only BUILDINGS/walls (top ≥ ~3.4) stop it
     for (const c of this.level.colliders) {
       if (c.top < minTop) continue;
       if (x > c.minX - 0.5 && x < c.maxX + 0.5 && z > c.minZ - 0.5 && z < c.maxZ + 0.5) return true;

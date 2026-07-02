@@ -39,7 +39,10 @@ export class VFX {
     this.tracers = this._pool(20, tg, () => noOutline(new THREE.MeshBasicMaterial({ color: 0xfff0bf, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })));
     // red enemy laser beams (thin glowing cylinders)
     const eg = new THREE.CylinderGeometry(0.13, 0.13, 1, 6); eg.translate(0, 0.5, 0);
-    this.enemyBeams = this._pool(28, eg, () => noOutline(new THREE.MeshBasicMaterial({ color: 0xff2a1a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }))); // beam + bright core = 2 per laserBeam
+    this.enemyBeams = this._pool(28, eg, () => noOutline(new THREE.MeshBasicMaterial({ color: 0xff2a1a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }))); // additive glow outer
+    // SOLID (normal-blended) beam cores — additive green over the warm orange world reads YELLOW, so the core shows the
+    // beam's TRUE colour on any background. Rick's hand-laser + all energy bolts glow in their real colour.
+    this.beamCores = this._pool(20, eg, () => noOutline(new THREE.MeshBasicMaterial({ color: 0x44ff44, transparent: true, depthWrite: false })));
     // expanding shockwave rings (billboarded)
     const ring = new THREE.RingGeometry(0.55, 0.72, 28);
     this.rings = this._pool(4, ring, () => noOutline(new THREE.MeshBasicMaterial({ color: 0xffe6b0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })));
@@ -231,11 +234,10 @@ export class VFX {
     const beam = this._next(this.enemyBeams);
     beam.mesh.position.copy(a); beam.mesh.quaternion.setFromUnitVectors(this._up, this._dir.normalize()); beam.mesh.scale.set(th, len, th);
     beam.mesh.material.color.setHex(color); beam.mesh.visible = true; beam.mesh.material.opacity = bad ? 0.98 : 0.85; beam.life = beam.max = bad ? 0.12 : 0.1;
-    // bright inner CORE tinted from the beam colour (NOT the warm bullet tracer, which reads yellow) → the bolt glows in its true colour
-    const core = this._next(this.enemyBeams);
-    core.mesh.position.copy(a); core.mesh.quaternion.copy(beam.mesh.quaternion); core.mesh.scale.set(th * 0.42, len, th * 0.42);
-    core.mesh.material.color.copy((this._c0 || (this._c0 = new THREE.Color())).setHex(color).lerp((this._cW || (this._cW = new THREE.Color(0xffffff))), 0.55));
-    core.mesh.visible = true; core.mesh.material.opacity = 1; core.life = core.max = beam.max;
+    // SOLID inner core (normal blend) in the beam's TRUE colour — additive alone reads yellow over the orange world
+    const core = this._next(this.beamCores);
+    core.mesh.position.copy(a); core.mesh.quaternion.copy(beam.mesh.quaternion); core.mesh.scale.set(th * 0.6, len, th * 0.6);
+    core.mesh.material.color.setHex(color); core.mesh.visible = true; core.mesh.material.opacity = 0.95; core.life = core.max = beam.max;
     const s = sizeScale;
     // muzzle/impact flashes tinted toward the BEAM colour (a hot bright version), not pure white → the bolt reads in its true colour (green stays green)
     const hot = (this._c1 || (this._c1 = new THREE.Color())).setHex(color).lerp((this._cW || (this._cW = new THREE.Color(0xffffff))), 0.6).getHex();
@@ -270,6 +272,7 @@ export class VFX {
     if (this._beam && this._beam.visible) { this._beamLife -= dt; const f = Math.max(0, this._beamLife / 0.85); this._beam.material.opacity = 0.9 * f; this._beamCore.material.opacity = f; if (this._beamLife <= 0) this._beam.visible = false; }
     for (const t of this.tracers) if (t.life > 0) { t.life -= dt; t.mesh.material.opacity = Math.max(0, t.life / t.max); if (t.life <= 0) t.mesh.visible = false; }
     for (const t of this.enemyBeams) if (t.life > 0) { t.life -= dt; t.mesh.material.opacity = Math.max(0, 0.95 * t.life / t.max); if (t.life <= 0) t.mesh.visible = false; }
+    for (const t of this.beamCores) if (t.life > 0) { t.life -= dt; t.mesh.material.opacity = Math.max(0, 0.95 * t.life / t.max); if (t.life <= 0) t.mesh.visible = false; }
     for (const e of this.embers) if (e.life > 0) {
       e.life -= dt; e.vel.y -= 14 * dt;
       e.mesh.position.addScaledVector(e.vel, dt);
