@@ -1,64 +1,60 @@
-# NightOps FPS Kit
+# 🧞 GENIE
 
-A small, hackable **first-person-shooter starter kit** for the web — built with
-**Three.js** (r0.169) and **Vite**, no framework, no build magic beyond Vite. It ships a
-complete, polished night military shooter and a clean toolkit so you (and your AI pair) can
-build your **own** FPS level or game on top of it fast.
+**GENIE** — a **G**enerative **E**ngine for **N**ative **I**nteractive **E**xperiences.
+*Make a wish, ship a game.*
 
-> **A themed kit, not a blank engine — with two honest reuse tiers.** `engine/` is generic FPS
-> infrastructure; `kit/` is a batteries-included *military-FPS toolkit* built on it (it knows about
-> walls, towers, vehicles, fuel barrels on purpose); `game/` is one shipped game. Reuse just the
-> engine, or the whole kit, or fork the game — see [Architecture](#architecture-at-a-glance).
+A small, hackable game engine for the browser — built on **Three.js** (r0.169) and **Vite**, no
+framework, no build magic. It ships three complete, polished games (first- **and** third-person) and a
+clean, **AI-first** toolkit of *skills* so you — and your AI pair — can conjure your **own** web game on
+top of it fast.
 
-## Two games, one engine
+> **A themed kit, not a blank engine — with honest reuse tiers.** `engine/` is generic, view-agnostic
+> game infrastructure (first- or third-person); `kit/` is a batteries-included *world toolkit* built on
+> it (it knows about walls, towers, vehicles, islands on purpose); `game/` is a shipped game. Reuse just
+> the engine, the whole kit, or fork a game — see [Architecture](#architecture-at-a-glance).
 
-**▶ [Play ARCFALL](https://nightops-first-fps.up.railway.app/?level=arcfall)** — a *daytime* island survival hunt: drop onto a time-fractured island, recover the **12 lost Arcs**, and survive the dinosaurs and giant mechs that guard them.
+## Three games, one engine
 
-| | |
-|:-:|:-:|
-| ![ARCFALL — action](media/arcfall-1.jpg) | ![ARCFALL — the island](media/arcfall-2.jpg) |
+**▶ [Play MEESEEKS MAYHEM](https://nightops-first-fps.up.railway.app/?level=meeseeks_mayhem)** — a *third-person* Rick & Morty romp: you're **Rick**, time is broken (again), and you must recover the **12 white magic rings** while fending off a rain of Mr. Meeseeks — regular, huge, and rare **kaiju-sized giants**. Start with infinite **green hand-lasers**, scavenge real blasters, jet around with **Iron-Man boots + palms**, and poof the blue idiots.
 
-**▶ [Play NightOps](https://nightops-first-fps.up.railway.app/?level=desert-base)** — a *night* military raid: infiltrate the desert base and **reach & disarm the bomb** before detonation.
+**▶ [Play ARCFALL](https://nightops-first-fps.up.railway.app/?level=arcfall)** — a *first-person* daytime island survival hunt: drop onto a time-fractured island, recover the **12 lost Arcs**, and survive the dinosaurs and giant mechs that guard them.
 
-| | |
-|:-:|:-:|
-| ![NightOps — the gate](media/nightops-1.jpg) | ![NightOps — the base](media/nightops-2.jpg) |
+**▶ [Play NightOps](https://nightops-first-fps.up.railway.app/?level=desert-base)** — a *first-person* night military raid: infiltrate the desert base and **reach & disarm the bomb** before detonation.
 
-> Both ship on the same engine + kit — proof it generalizes (reuse just `engine/`, the whole `kit/`, or fork a `game/`).
+> All three ship on the same engine + kit — proof it generalizes across views, genres and art styles
+> (reuse just `engine/`, the whole `kit/`, or fork a `game/`).
 
 ---
 
 ## What's in the box
 
-- **First-person controller** — pointer-lock look, WASD, sprint, jump, duck, headbob.
-- **Gunplay** — hitscan rifle (recoil, muzzle flash, tracers, impact sparks/decals, hitmarkers),
-  a **missile launcher** (Q), and **grenades** (right-click).
-- **Engine impact system** — distance-falloff blasts that damage enemies, knock back/ragdoll, and
-  shove mass-aware physics props.
-- **Destructibles** — shootable **fuel barrels**, **fuel tanks**, and **vehicles** (launched into the
-  air on death) with chain-reaction cook-offs, on a clean **unit-damage** scale.
-- **Rigged glTF enemies** — patrol → take-cover → peek-and-fire AI that paths around obstacles and
-  respects wall line-of-sight.
-- **An enemy gunship boss** — descends, strafes, and can be killed by rifle or one rocket.
-- **Cinematic fast-rope insertion** intro, tactical HUD, win/lose flow.
-- **Two objective types** — `exfil` (clear all + reach the flag) and `defuse` (crack a timed bomb
-  code, including a self-working "mentalist" code puzzle).
+- **First- AND third-person controller** — pointer-lock look, WASD, sprint, jump (with animation), duck,
+  headbob; an orbit-cam third-person mode with a visible, skeletally-animated avatar.
+- **Character animation** — an upper/lower-body split rig (run-and-gun: legs stride while arms aim),
+  procedural aim, jet/thruster states, and drop-in Mixamo clips (idle/walk/run/gunplay/jump/dance).
+- **Gunplay & energy weapons** — hitscan guns (recoil, tracers, sparks/decals, hitmarkers), sci-fi
+  **energy beams** with a single-source color (beam + core + flashes + impact all match), a **missile
+  launcher**, **grenades**, and pickup-to-acquire weapon scavenging.
+- **VFX** — laser bolts, colored ground **force-field** bursts (with AoE), explosions, shockwaves,
+  size-scaled death poofs (dust + smoke), GPU particle thrusters.
+- **Engine impact system** — distance-falloff blasts that damage enemies, knock back/ragdoll, and shove
+  mass-aware physics props; destructible barrels/tanks/vehicles with chain-reaction cook-offs.
+- **Rigged glTF enemies** — patrol → take-cover → peek-and-fire AI, plus ranged **Meeseeks** (gun/rocket),
+  size tiers (normal / huge / giant), and an enemy **gunship boss**.
 - **Levels as data** — drop a module in `src/game/levels/`, register it, and it's selectable with
-  `?level=<id>`. Two ship in the box: `compound` and `desert-base`.
-- **Night rendering** — baked sky + IBL, a starfield, cel-shaded ink **OutlineEffect**, soft shadows,
-  floodlights.
+  `?level=<id>`. Ships `meeseeks_mayhem`, `arcfall`, `compound`, `desert-base`.
+- **Story & audio** — per-level music (synth + real tracks), voice lines, intro/victory crawls, and a
+  deploy screen (with dancing Rick + flamenco on the Meeseeks level).
 
 ## Controls (desktop)
 
-- **WASD** move · **Shift** sprint · **Space** jump · **C** duck
-- **Mouse** look · **Left-click** fire (full-auto) · **R** reload
-- **Q** toggle the missile launcher · **Right-click** throw a grenade
-- Click **Deploy** to lock the mouse and start.
+- **WASD** move · **Shift** sprint · **Space** jump · **C** duck · **E** jetpack/boots
+- **Mouse** look · **Left-click** fire · **R** reload · **Q** cycle weapon
+- **Right-click** throw a grenade · Click **Deploy** to lock the mouse and start.
 
-> **Desktop / laptop only for now.** The game gates phones & tablets with a "play on a computer"
-> screen (mobile touch controls exist in `engine/touch.js` but are disabled — the gate lives in
-> `src/device.js`, called at the bottom of `main.js`). Input is read by **physical key**
-> (`event.code`), so non-Latin keyboard layouts (Hebrew, Russian, …) work without switching to English.
+> **Desktop / laptop only for now.** Phones/tablets get a "play on a computer" gate (`src/device.js`);
+> touch controls exist in `engine/touch.js` but are disabled. Input is read by **physical key**
+> (`event.code`), so non-Latin layouts (Hebrew, Russian, …) work without switching to English.
 
 ## Run it
 
@@ -67,7 +63,7 @@ npm install
 npm run dev        # http://localhost:5180
 ```
 
-Pick a level with a query param: `http://localhost:5180/?level=compound`
+Pick a game with a query param: `http://localhost:5180/?level=meeseeks_mayhem`
 
 ## Build & deploy
 
@@ -80,67 +76,57 @@ Deploys as a static site behind a tiny Node server (`server.js`). The live demo 
 
 ## Architecture at a glance
 
-Three tiers, flat and framework-free (~4.4k lines). The arrows show what may import what — a lint rule
+Three tiers, flat and framework-free. The arrows show what may import what — a lint rule
 (`npm run lint`) enforces it, so the layers can't rot into each other:
 
 ```
-engine/  ← generic, content-agnostic FPS systems
-   ▲       render • controller • input • weapon viewmodel • projectiles+blast • vfx • hud • audio • assets
+engine/  ← generic, content-agnostic, view-agnostic game systems
+   ▲       render • first/third-person controller • input • weapon viewmodel • projectiles+blast • vfx • hud • audio • assets
    │
-kit/     ← the military-FPS TOOLKIT (uses engine, never game)
-   ▲       level-builder (walls/towers/vehicles/barrels…) • destructibles • content/ (model catalogs)
+kit/     ← the WORLD TOOLKIT (uses engine, never game)
+   ▲       level-builder (walls/towers/vehicles/island…) • destructibles • content/ (model catalogs)
    │
-game/    ← THIS game only (uses engine + kit)
-           config+balance • combat • actors/ (enemy, helicopter) • objectives/ (defuse, exfil) • levels/
+game/    ← ONE game (uses engine + kit)
+           config+balance • combat • actors/ (rick, meeseeks, enemy, helicopter) • objectives/ • levels/
 
 main.js  ← the runner: wires the tiers, owns the state machine + per-frame loop
 ```
 
-**The rule:** `engine/` imports nothing from `kit/` or `game/`; `kit/` may use `engine/`; `game/`
-may use both. That's why there are two clean reuse tiers — take just `engine/`, or the whole `kit/`.
+**The rule:** `engine/` imports nothing from `kit/` or `game/`; `kit/` may use `engine/`; `game/` may use
+both. That's the reuse promise — take just `engine/`, or the whole `kit/`.
 
-- **Tuning is data** — all gameplay numbers live in `game/config.js` → `balance` (HP, damage, the
-  unit scale, blast radii, timings). Levels override per-section via `mergeConfig`.
-- **Content is data** — a level is a module `{ id, name, config?, build(b) }`; an objective and a
-  weapon are small modules behind a registry. Adding them doesn't touch the runner.
+- **Tuning is data** — gameplay numbers live in `game/config.js` → `balance`; levels override per-section.
+- **Content is data** — a level is a module `{ id, name, config?, build(b) }`; objectives and weapons are
+  small modules behind a registry. Adding them doesn't touch the runner.
 
-## Build your own
+## Build your own (with your AI pair)
 
-**Recommended path:** clone → `npm run dev` → copy `src/game/levels/compound.js` to a new module and
-register it in `levels/index.js` → lay out your map with the `LevelBuilder` calls → retune
-`config.balance` → (optionally) add an objective or weapon module. Then `npm run lint && npm run build`.
+GENIE is **AI-first**: the [`skills/`](skills/) directory is a library of task recipes your agent runs to
+extend the engine — add a level, weapon, enemy, or audio; verify in-browser; ship. Start with
+`engine-overview`.
 
-- **[skills/](skills/)** — the AI-first task skills: the `LevelBuilder` cheat-sheet,
-  adding a level/weapon/enemy/audio, verifying in-browser, and shipping. Start with `engine-overview`.
+**Recommended path:** clone → `npm run dev` → copy a level module → register it in `levels/index.js` → lay
+out your map with `LevelBuilder` → retune `config.balance` → (optionally) add an objective/weapon module.
+Then `npm run lint && npm run build`.
+
+- **[skills/](skills/)** — the AI-first task skills (LevelBuilder cheat-sheet, add-a-thing, verify, ship).
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** — the full module map + the dependency rule.
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — the boundary rule, where-things-go table, house style, CI.
-- **[AGENTS.md](AGENTS.md)** — building with **Claude / an AI agent**? This hands your agent the
-  conventions, the `window.__game` dev hooks, and the in-browser verification workflow.
-
-## Roadmap / follow-ups
-
-- **Add CI** — paste the workflow from [CONTRIBUTING.md](CONTRIBUTING.md) into `.github/workflows/ci.yml`
-  (via the GitHub web UI) to run lint + build on every PR.
-- **A `npm test` smoke harness** — formalize the `window.__game` checks (LOS, shot counts, code solves).
-- **Grow "The Lost Arcs"** — more weapons/monsters, a robot boss fight, biomes, day/night cycle.
-- **Re-enable mobile** — the touch controls (`engine/touch.js`) are intact, just gated off in
-  `src/device.js` (called at the bottom of `main.js`).
-- Known nit: a few enemies can settle slightly into the ground on death (cosmetic).
+- **[AGENTS.md](AGENTS.md)** — building with **Claude / an AI agent**? The conventions, the `window.__game`
+  dev hooks, and the in-browser verification workflow.
 
 ## Tech
 
-Three.js (PointerLockControls, GLTFLoader, SkeletonUtils, OutlineEffect), procedural geometry &
-canvas textures, Web Audio. Single-page; no backend logic (just a static file server).
+Three.js (PointerLock/orbit cameras, GLTFLoader, SkeletonUtils, AnimationMixer, OutlineEffect),
+procedural geometry & canvas textures, Web Audio (synth + decoded tracks). Single-page; no backend.
 
 ## Credits
 
-- **Player operator (SWAT):** CC0 "Ultimate Modular Men" low-poly character pack.
-- **Vehicles (truck/flatbed/SUV/van):** Kenney CC0 Car Kit (tinted military).
-- **Ammo magazine pickup:** CC0 "Low Poly Weapons Pack".
-- **Missile launcher viewmodel:** CC0 low-poly rocket launcher.
-- **Attack & insertion helicopters:** built procedurally (no external model).
-- **Rotor loop:** [w84death/the-complex-project](https://github.com/w84death/the-complex-project) (MIT).
-- **"Enemy spotted" radio callout:** Counter-Strike radio sound.
+- **Rick Sanchez:** UE4-rigged fan model, re-textured + Mixamo-animated (idle/walk/run/gunplay/jump/salsa).
+- **Player operator (SWAT):** CC0 "Ultimate Modular Men" pack. **Vehicles:** Kenney CC0 Car Kit.
+- **Blasters / ammo:** CC0 low-poly weapon packs. **Helicopters:** procedural.
+- **Music:** "Get Schwifty" / Pacific Rim / Alien Boy (level tracks); Spanish flamenco (lemonmusiclab).
+- **Voice lines:** Rick "wubba lubba dub dub" + "Mr. Meeseeks"; CS radio callout.
 
 ## License
 

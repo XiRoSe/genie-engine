@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for building on **NightOps FPS Kit**! It's a small, flat, framework-free codebase — keep it
+Thanks for building on **GENIE** (a Generative Engine for Native Interactive Experiences)! It's a small, flat, framework-free codebase — keep it
 that way and changes stay easy to review.
 
 ## Setup

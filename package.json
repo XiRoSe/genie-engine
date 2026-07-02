@@ -1,8 +1,8 @@
 {
-  "name": "nightops-fps-kit",
+  "name": "genie-engine",
   "private": true,
   "version": "0.1.0",
-  "description": "NightOps FPS Kit — a hackable Three.js + Vite first-person-shooter starter kit (night military shooter, level toolkit, destructibles, AI).",
+  "description": "GENIE — a Generative Engine for Native Interactive Experiences. An AI-first, hackable Three.js + Vite web game engine (first- and third-person), with a skills toolkit and three shipped games.",
   "license": "MIT",
   "author": "XiRoSe",
   "type": "module",

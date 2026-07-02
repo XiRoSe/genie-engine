@@ -1,6 +1,6 @@
 # AGENTS.md — guide for Claude / AI agents
 
-You're working in **NightOps FPS Kit**, a Three.js + Vite first-person shooter. This file hands you
+You're working in **GENIE** (a Generative Engine for Native Interactive Experiences), a Three.js + Vite web game engine (first- and third-person). This file hands you
 the conventions and the verification workflow so you don't rediscover them by trial and error. Read
 [ARCHITECTURE.md](ARCHITECTURE.md) for the module map and the task skills in
 [skills/](skills/) for the content APIs (add-level, add-weapon, add-enemy, add-audio,
