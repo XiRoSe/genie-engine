@@ -9,7 +9,7 @@ export const meeseeks = {
   config: {
     view: "third",                                              // 3rd-person: you see Rick + his gun
     scene: { sky: "day", fog: { color: 0x9a7fb0, near: 240, far: 1300 }, fov: 75 },
-    intro: { enabled: true, style: "droppod", spottedCalloutAt: 4.5 }, // same sky-fall drop-pod cinematic + story as the original ARCFALL
+    intro: { enabled: false, style: "droppod", spottedCalloutAt: 4.5 }, // NO cinematic — deploy drops you straight into the fight (dramatic Pacific Rim swell instead)
     objective: { type: "collect", count: 12 },                  // recover the 12 arcs, same as ARCFALL
     helicopter: { spawnDelay: 99999 },
     // Rick starts with ONLY his innate GREEN palm-lasers (infinite) — the real blasters are scavenged from the island

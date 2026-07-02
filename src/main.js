@@ -188,6 +188,12 @@ class Game {
     this.state = "start";
     if (this._heroLobby) this._showHeroSelect();
     else this.hud.showStart(() => this._deploy(), { title: this.levelDef.name, brief: this.objective.brief() });
+    // Rick's deploy screen: cool SALSA groove while he dances (starts on the first user gesture — audio needs one)
+    if (this.cfg.view === "third") {
+      const kickSalsa = () => { if (this.state === "start") { this.audio.resume?.(); this.audio.startSalsaMusic?.(); } window.removeEventListener("pointerdown", kickSalsa); window.removeEventListener("keydown", kickSalsa); };
+      this.audio.resume?.(); this.audio.startSalsaMusic?.(); // try now (works if audio already unlocked)
+      window.addEventListener("pointerdown", kickSalsa); window.addEventListener("keydown", kickSalsa); // otherwise on first interaction
+    }
   }
 
   // screen 1: pick a hero (hero framed close); screen 2: deploy (camera pulls back)
@@ -247,7 +253,16 @@ class Game {
     this._menuLightsOff(); // drop the deploy-screen fill once we commit to the mission
     if (this.playerModel && this.playerModel.setDancing) this.playerModel.setDancing(false); // stop the Salsa, time to fight
     trackStart(); // count a play (the moment they commit to the mission)
-    if (!this.cfg.intro.enabled) { this._introDone = true; this._startPlay(); return; }
+    if (!this.cfg.intro.enabled) { // NO cinematic — drop straight into the fight with a dramatic Pacific Rim swell
+      this._introDone = true; this.audio.stopSalsaMusic?.();
+      if (this._thirdPerson) {
+        const sp = this.level.playerSpawn;
+        this.controller.pos.set(sp.x, 0, sp.z); this.controller.feetY = this.level.terrainHeight ? this.level.terrainHeight(sp.x, sp.z) : 0;
+        this._dramaticStart = true;                                    // Pacific Rim entrance in _startPlay
+        setTimeout(() => this.audio.playBuf?.("rick_wabba", 0.95), 500); // Rick's catchphrase as he lands in
+      }
+      this._startPlay(); return;
+    }
     this.state = "intro";
     this._disposeLobby();
     this.hud.hideOverlay();
@@ -315,7 +330,11 @@ class Game {
     this.hud.setGrenades(this.grenades);
     this.touch.show();
     this.audio.stopDropWhoosh?.(); // safety: ensure the plummet whoosh isn't still ringing
-    this.audio.stopLobbyMusic?.(); this.audio.stopBattleMusic?.(); this.audio.startGameMusic?.(this.cfg.music); // gameplay loop (per-level track; default Oliver Tree "Alien Boy")
+    this.audio.stopLobbyMusic?.(); this.audio.stopSalsaMusic?.();
+    if (this._dramaticStart) { // Rick deploy (no cinematic): dramatic Pacific Rim swell, THEN the in-game track
+      this._dramaticStart = false; this.audio.startBattleMusic?.();
+      clearTimeout(this._toGameMusic); this._toGameMusic = setTimeout(() => { if (this.state === "play") { this.audio.stopBattleMusic?.(); this.audio.startGameMusic?.(this.cfg.music); } }, 16000);
+    } else { this.audio.stopBattleMusic?.(); this.audio.startGameMusic?.(this.cfg.music); } // gameplay loop (per-level track)
     if (!this._deployed) { this._deployed = true; this.voice.deploy(); this._timeLeft = 300; } // 5:00 mission clock
     this.state = "play";
   }
@@ -905,9 +924,10 @@ class Game {
       this.hud.setArcArrow(found ? Math.atan2(bdx, bdz) - Math.atan2(fwd.x, fwd.z) : null);
     }
     this._updateProjectiles(dt);
-    // enemy reinforcements: drop a fresh enemy in a different section every 3s
+    // enemy reinforcements: drop a fresh enemy from the sky (every 2s — constant Meeseeks rain)
     this._reinfT = (this._reinfT || 0) + dt;
-    if (this._reinfT >= 5 && this.combat.enemies.filter((e) => !e.dead).length < 60) { this._reinfT = 0; this._dropReinforcement(); }
+    const reinfEvery = this.cfg.reinforce === "meeseeks" ? 2 : 5;
+    if (this._reinfT >= reinfEvery && this.combat.enemies.filter((e) => !e.dead).length < 60) { this._reinfT = 0; this._dropReinforcement(); }
     this._updateReinforcements(dt);
     this.level.updateDynamics(dt); // explosion-flung props (barrels, etc.)
 

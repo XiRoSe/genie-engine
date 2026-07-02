@@ -281,13 +281,13 @@ export class Audio {
     if (!this._whoosh) return; const list = this._whoosh; this._whoosh = null;
     for (const w of list) { try { w.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.06); } catch { /* gone */ } setTimeout(() => { try { w.src.stop(); } catch { /* stopped */ } }, 180); }
   }
-  poof(scale = 1) { // Meeseeks death "poof" — airy puff that deepens/lengthens with the Meeseeks' size
-    const sz = Math.max(0.6, Math.min(3.2, Math.sqrt(Math.max(0.4, scale)))); // 1=normal, ~2.8=huge, ~4.8→cap giant
-    if (this.playBuf && this.playBuf("poof", Math.min(0.95, 0.4 * sz), 1 / sz)) return;
+  poof(scale = 1) { // Meeseeks death "POOF" — a satisfying cartoon puff, deeper/louder the bigger the Meeseeks
     if (!this.ctx) return;
-    this._noiseBurst(0.3 * sz, 1700 / sz, 0.7, 0.34, "lowpass"); // the airy "phwoomp"
-    this._noiseBurst(0.55 * sz, 700 / sz, 0.5, 0.22, "lowpass"); // low body/tail
-    this._tone(230 / sz, 0.3 * sz, "sine", 0.24, 70 / sz);       // soft descending whoomph
+    const sz = Math.max(0.7, Math.min(3.0, Math.sqrt(Math.max(0.4, scale)))); // 1=normal, ~2.8=huge, capped for giant
+    this._noiseBurst(0.13 * sz, 4600 / sz, 0.6, 0.5, "bandpass");  // sharp airy "pff" top
+    this._noiseBurst(0.4 * sz, 1200 / sz, 0.5, 0.5, "lowpass");    // main body of the puff
+    this._noiseBurst(0.62 * sz, 480 / sz, 0.4, 0.34, "lowpass");   // low smoke tail
+    this._tone(360 / sz, 0.34 * sz, "sine", 0.34, 85 / sz);        // descending whoomph
   }
   creature() { // real dinosaur growl (formant-synth fallback below)
     if (this.playBuf("dino_roar", 0.65, 0.92 + Math.random() * 0.14)) return;
@@ -385,6 +385,43 @@ export class Audio {
     this._stopSynthRotor();
   }
   // ── chill lo-fi R&B groove for the hero-select screen (warm Rhodes chords + bassline + soft beat) ──
+  // Latin/SALSA groove for the Rick deploy screen (Rick's doing the salsa) — son clave + piano montuno + tumbao bass
+  // + congas. All synth, no asset. Loops until stopSalsaMusic().
+  startSalsaMusic() {
+    if (!this.ctx || this._salsa) return;
+    const ctx = this.ctx, bus = ctx.createGain(); bus.gain.value = 0; bus.connect(this.master);
+    bus.gain.linearRampToValueAtTime(0.32, ctx.currentTime + 0.8);
+    const f = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
+    // i–iv–V–i in A minor, one chord per bar (montuno vamp)
+    const chords = [[57, 60, 64, 67], [50, 53, 57, 60], [52, 56, 59, 64], [57, 60, 64, 67]];
+    const roots = [33, 38, 40, 33]; // A1, D2, E2, A1
+    const bpm = 186, beat = 60 / bpm, bar = beat * 4;
+    const m = { bus, stopped: false, interval: null }; this._salsa = m;
+    const piano = (fr, t, dur, vol) => { const o = ctx.createOscillator(); o.type = "triangle"; o.frequency.value = fr; const o2 = ctx.createOscillator(); o2.type = "square"; o2.frequency.value = fr * 1.001; const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2600; const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(lp); o2.connect(lp); lp.connect(g); g.connect(bus); o.start(t); o2.start(t); o.stop(t + dur + 0.03); o2.stop(t + dur + 0.03); };
+    const bassV = (fr, t, dur, vol) => { const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = fr; const g = ctx.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + 0.04); };
+    const perc = (t, freq, q, vol, dur = 0.05, type = "bandpass") => { const s = ctx.createBufferSource(); s.buffer = this._noise; const bp = ctx.createBiquadFilter(); bp.type = type; bp.frequency.value = freq; bp.Q.value = q; const g = ctx.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s.connect(bp); bp.connect(g); g.connect(bus); s.start(t); s.stop(t + dur + 0.02); };
+    const clave = (t) => perc(t, 2000, 6, 0.32, 0.06, "bandpass"); // woodblock click
+    let i = 0;
+    const playBar = () => {
+      if (m.stopped) return;
+      const t = ctx.currentTime + 0.06, sixteenth = beat / 4, c = chords[i % 4].map(f), r = roots[i % 4];
+      // son clave — alternate 3-side / 2-side each bar
+      const three = [0, 3, 6, 10, 12], two = [4, 7, 12, 20 % 16]; const claveHits = (i % 2 === 0) ? three : two;
+      for (const s of claveHits) clave(t + s * sixteenth);
+      // montuno: bright syncopated piano arpeggio (offbeat-heavy)
+      const pat = [0, 2, 3, 6, 8, 10, 11, 14]; // 16th offsets
+      pat.forEach((s, k) => piano(c[[0, 2, 1, 3, 2, 0, 1, 2][k]] * (k >= 5 ? 2 : 1), t + s * sixteenth, sixteenth * 2.2, 0.075));
+      // tumbao bass — anticipated: root on the "and of 2" and beat 4
+      bassV(r, t + beat * 1.5, beat * 0.9, 0.26); bassV(f(roots[i % 4] + 7) / 1, t + beat * 3, beat * 0.9, 0.22);
+      // congas + hats (busy latin feel)
+      for (let h = 0; h < 8; h++) perc(t + h * beat * 0.5, h % 2 ? 6500 : 4200, 0.8, h % 2 ? 0.05 : 0.09, 0.03, "highpass");
+      perc(t + beat * 0.5, 320, 2, 0.16, 0.08, "bandpass"); perc(t + beat * 2.5, 260, 2, 0.16, 0.09, "bandpass"); // low conga tones
+      i++;
+    };
+    playBar(); m.interval = setInterval(playBar, bar * 1000);
+  }
+  stopSalsaMusic() { const m = this._salsa; if (!m) return; this._salsa = null; m.stopped = true; if (m.interval) clearInterval(m.interval); const t = this.ctx.currentTime; m.bus.gain.cancelScheduledValues(t); m.bus.gain.setValueAtTime(m.bus.gain.value, t); m.bus.gain.linearRampToValueAtTime(0, t + 0.4); }
+
   startLobbyMusic() {
     if (!this.ctx || this._lobbyMusic) return;
     const ctx = this.ctx, bus = ctx.createGain(); bus.gain.value = 0; bus.connect(this.master);
