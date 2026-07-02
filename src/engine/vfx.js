@@ -221,16 +221,20 @@ export class VFX {
   // kicked-up dust (vehicle wheels / tracks / impacts) — named dustBurst to avoid the `dust` pool field
   dustBurst(point) { this._dustPuff(point, 0x9a8a62, 0.7); }
 
-  // a proper energy LASER: a thick glowing cyan beam (lingering cylinder) + a hot white core + end flashes
-  laserBeam(a, b, color = 0x34ffd6) {
+  // a proper energy LASER: a thick glowing beam (lingering cylinder) + a hot white core + end flashes. sizeScale
+  // fattens the whole bolt AND its muzzle/impact flashes together (so beam + hit stay matched) — used to scale
+  // Meeseeks lasers with the Meeseeks' size, and to make Rick's blasters extra chunky for wow.
+  laserBeam(a, b, color = 0x34ffd6, sizeScale = 1) {
     this._dir.subVectors(b, a); const len = this._dir.length(); if (len < 0.1) return;
     const bad = this._badass; // Rick level: fatter, brighter bolt with double muzzle+impact flashes
+    const th = (bad ? 1.7 : 0.55) * sizeScale; // beam radius
     const beam = this._next(this.enemyBeams);
-    beam.mesh.position.copy(a); beam.mesh.quaternion.setFromUnitVectors(this._up, this._dir.normalize()); beam.mesh.scale.set(bad ? 0.95 : 0.55, len, bad ? 0.95 : 0.55);
-    beam.mesh.material.color.setHex(color); beam.mesh.visible = true; beam.mesh.material.opacity = bad ? 0.95 : 0.85; beam.life = beam.max = bad ? 0.11 : 0.1;
+    beam.mesh.position.copy(a); beam.mesh.quaternion.setFromUnitVectors(this._up, this._dir.normalize()); beam.mesh.scale.set(th, len, th);
+    beam.mesh.material.color.setHex(color); beam.mesh.visible = true; beam.mesh.material.opacity = bad ? 0.98 : 0.85; beam.life = beam.max = bad ? 0.12 : 0.1;
     this.tracer(a, b); // bright white-hot core down the centre
-    if (bad) { this._flash(a, 0.7, 0xffffff); this._flash(a, 1.15, color); this._flash(b, 1.0, 0xffffff); this._flash(b, 1.7, color); }
-    else { this._flash(a, 0.4, 0xffffff); this._flash(b, 0.75, color); }
+    const s = sizeScale;
+    if (bad) { this._flash(a, 0.9 * s, 0xffffff); this._flash(a, 1.5 * s, color); this._flash(b, 1.3 * s, 0xffffff); this._flash(b, 2.2 * s, color); }
+    else { this._flash(a, 0.4 * s, 0xffffff); this._flash(b, 0.75 * s, color); }
   }
 
   // sci-fi plasma detonation: a blue/cyan energy fireball + shockwave + sparks

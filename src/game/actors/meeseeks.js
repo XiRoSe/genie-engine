@@ -27,7 +27,7 @@ export class Meeseeks {
     if (MEESEEKS_MODEL.ready) {
       const inst = MEESEEKS_MODEL.make({ rightHand: RM_HAND_BONE });
       inst.model.scale.multiplyScalar(this.sc);                 // huge variants scale on top of the rig scale
-      this.group.add(inst.model);
+      this.group.add(inst.model); this._model = inst.model;
       this.mixer = new THREE.AnimationMixer(inst.model);
       for (const c of inst.animations) if (/walk/i.test(c.name) && !this._walk) this._walk = this.mixer.clipAction(c);
       if (this._walk) { this._walk.play(); this._walk.setEffectiveWeight(0); }
@@ -43,8 +43,11 @@ export class Meeseeks {
       if (!this._hand) this._gun.position.set(0.42 * this.sc, 1.15 * this.sc, 0.32 * this.sc);
     }
 
-    const hbW = 1.1 * this.sc, hbH = 2.0 * this.sc;
+    // Hitbox scaled with the Meeseeks — a generously WIDE box centred on the model mid-height (feet→head span
+    // 0..2*sc). Height/width scale with sc so shots register on any size (normal/huge/giant). NB: we deliberately
+    // do NOT use Box3.setFromObject here — on a skinned mesh it ignores bone transforms and returns a bogus box.
     const hbMat = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }); hbMat.userData.outlineParameters = { visible: false };
+    const hbW = 1.4 * this.sc, hbH = 2.0 * this.sc;
     this.hitbox = new THREE.Mesh(new THREE.BoxGeometry(hbW, hbH, hbW), hbMat); this.hitbox.position.y = hbH / 2;
     this.hitbox.userData.enemy = this; this.group.add(this.hitbox);
   }
@@ -67,12 +70,14 @@ export class Meeseeks {
     this._deathT = 0.5 + this.sc * 0.12;                           // bigger Meeseeks poofs linger longer
     this._puffAt = this.group.position.clone();                    // keep puffing here after the body vanishes
     if (this._ctx) {
-      const p = this.group.position;
-      const n = Math.round((this.huge ? 22 : 12) * (this.giant ? 2.2 : 1)); // more debris the bigger they are
-      for (let i = 0; i < n; i++) this._ctx.vfx?.dustBurst?.(new THREE.Vector3(p.x + (Math.random() - 0.5) * 1.6 * this.sc, p.y + (0.5 + Math.random() * 1.8) * this.sc, p.z + (Math.random() - 0.5) * 1.6 * this.sc));
-      this._ctx.vfx?._flash?.(new THREE.Vector3(p.x, p.y + this.sc, p.z), 1.8 * this.sc, 0x9fe0ff);
-      this._ctx.vfx?._shockwave?.(new THREE.Vector3(p.x, p.y + 0.2, p.z)); // ground shock ring
-      this._ctx.audio?.poof?.(this.sc);                            // cool puff sound, deeper/louder the bigger they are
+      const p = this.group.position, vfx = this._ctx.vfx, sc = this.sc;
+      const n = Math.round((this.huge ? 30 : 16) * (this.giant ? 2.6 : 1)); // blue debris puffs — many more, bigger they are
+      for (let i = 0; i < n; i++) vfx?.dustBurst?.(new THREE.Vector3(p.x + (Math.random() - 0.5) * 1.8 * sc, p.y + (0.4 + Math.random() * 1.9) * sc, p.z + (Math.random() - 0.5) * 1.8 * sc));
+      const sm = Math.round((this.huge ? 16 : 7) * (this.giant ? 2.6 : 1)); // billowing dark SMOKE, size-scaled
+      for (let i = 0; i < sm; i++) vfx?._dustPuff?.(new THREE.Vector3(p.x + (Math.random() - 0.5) * 1.9 * sc, p.y + (0.5 + Math.random() * 2.1) * sc, p.z + (Math.random() - 0.5) * 1.9 * sc), 0x2c3038, (0.6 + Math.random() * 1.1) * sc);
+      vfx?._flash?.(new THREE.Vector3(p.x, p.y + sc, p.z), 1.8 * sc, 0x9fe0ff);
+      vfx?._shockwave?.(new THREE.Vector3(p.x, p.y + 0.2, p.z)); // ground shock ring
+      this._ctx.audio?.poof?.(sc);                                 // cool puff sound, deeper/louder the bigger they are
       // no voice on death. The Meeseeks voice line plays ONLY when they fall from the sky (see main._dropReinforcement)
     }
     this.group.visible = false; // poof = gone
@@ -83,8 +88,9 @@ export class Meeseeks {
     if (this.mixer) this.mixer.update(dt);
     const gy = this.level.terrainHeight ? this.level.terrainHeight(this.pos.x, this.pos.z) : 0;
     if (this.dead) {
-      if (this._puffAt && ctx.vfx?.dustBurst) { const q = this.giant ? 4 : this.huge ? 2 : 1, a = this._puffAt; // lingering poof cloud, size-scaled
-        for (let i = 0; i < q; i++) ctx.vfx.dustBurst(new THREE.Vector3(a.x + (Math.random() - 0.5) * 1.4 * this.sc, a.y + (0.3 + Math.random() * 2.0) * this.sc, a.z + (Math.random() - 0.5) * 1.4 * this.sc)); }
+      if (this._puffAt && ctx.vfx?.dustBurst) { const q = this.giant ? 6 : this.huge ? 3 : 1, a = this._puffAt, sc = this.sc; // lingering dust + smoke cloud, size-scaled
+        for (let i = 0; i < q; i++) ctx.vfx.dustBurst(new THREE.Vector3(a.x + (Math.random() - 0.5) * 1.5 * sc, a.y + (0.3 + Math.random() * 2.1) * sc, a.z + (Math.random() - 0.5) * 1.5 * sc));
+        for (let i = 0; i < q; i++) ctx.vfx._dustPuff?.(new THREE.Vector3(a.x + (Math.random() - 0.5) * 1.7 * sc, a.y + (0.5 + Math.random() * 2.3) * sc, a.z + (Math.random() - 0.5) * 1.7 * sc), 0x2c3038, (0.5 + Math.random()) * sc); }
       if ((this._deathT -= dt) <= 0) this.removable = true; return;
     }
     const dx = playerPos.x - this.pos.x, dz = playerPos.z - this.pos.z, d = Math.hypot(dx, dz) || 1;
@@ -101,8 +107,8 @@ export class Meeseeks {
       // Meeseeks are ranged only — they never melee, they shoot from `reach` away
       this._atkCd = this.weapon === "rocket" ? (2.4 + Math.random() * 0.9) : (0.8 + Math.random() * 0.5);
       if (!ctx.airborne && !this.level.segmentBlocked(this.pos.x, this.pos.z, playerPos.x, playerPos.z)) {
-        const fx = this.pos.x + (dx / d) * 0.9, fz = this.pos.z + (dz / d) * 0.9, my = gy + 1.3 * this.sc;
-        ctx.enemyFire?.({ from: { x: fx, y: my, z: fz }, to: { x: playerPos.x, y: playerPos.y, z: playerPos.z }, kind: this.weapon, dmg: this.weapon === "rocket" ? (this.giant ? 110 : this.huge ? 60 : 28) : (this.giant ? 34 : this.huge ? 18 : 7) });
+        const fx = this.pos.x + (dx / d) * 0.7 * this.sc, fz = this.pos.z + (dz / d) * 0.7 * this.sc, my = gy + 1.3 * this.sc; // from the (scaled) gun height
+        ctx.enemyFire?.({ from: { x: fx, y: my, z: fz }, to: { x: playerPos.x, y: playerPos.y, z: playerPos.z }, kind: this.weapon, sc: this.sc, dmg: this.weapon === "rocket" ? (this.giant ? 110 : this.huge ? 60 : 28) : (this.giant ? 34 : this.huge ? 18 : 7) });
       }
     }
     this._anim(gy, moving);
@@ -125,8 +131,9 @@ export class Meeseeks {
   }
 
   _blocked(x, z) {
+    const minTop = this.giant ? 8 : 0.6;  // the GIANT tramples everything (rocks/props) — only tall BUILDINGS stop it
     for (const c of this.level.colliders) {
-      if (c.top < 0.6) continue;
+      if (c.top < minTop) continue;
       if (x > c.minX - 0.5 && x < c.maxX + 0.5 && z > c.minZ - 0.5 && z < c.maxZ + 0.5) return true;
     }
     return false;

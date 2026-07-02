@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { RICK_MODEL, RICK_WALK, RICK_RUN, RICK_GUN, RICK_DANCE, RM_HAND_BONE, clipsOf } from "./rickmorty-assets.js";
+import { RICK_MODEL, RICK_WALK, RICK_RUN, RICK_GUN, RICK_DANCE, RICK_JUMP, RM_HAND_BONE, clipsOf } from "./rickmorty-assets.js";
 import { makeHeldGun, gunKindForMode } from "./heldguns.js";
 import { makeGunModel } from "./gunmodels.js";
 
@@ -10,7 +10,7 @@ export function makeRick() {
   const group = new THREE.Group();
   let mixer = null, hand = null, handL = null, footR = null, footL = null;
   // Upper/lower-body split actions: legs run the locomotion clip, torso+arms crossfade to the Gunplay pose.
-  let idleLo, idleUp, walkLo, walkUp, runLo, runUp, gunUp, dance;
+  let idleLo, idleUp, walkLo, walkUp, runLo, runUp, gunUp, dance, jump;
   let legL, legR, armL, armR; // procedural fallback handles
 
   if (RICK_MODEL.ready) {
@@ -27,8 +27,9 @@ export function makeRick() {
     runLo = mk(rRun, false); runUp = mk(rRun, true);
     gunUp = mk(rGun, true); // upper half of the gun stance (torso+arms); legs come from locomotion
     const rDance = clipsOf(RICK_DANCE)[0]; if (rDance) { dance = mixer.clipAction(rDance); dance.setEffectiveTimeScale(0.7); } // full-body Salsa for the deploy screen (a touch slower)
+    const rJump = clipsOf(RICK_JUMP)[0]; if (rJump) jump = mixer.clipAction(rJump); // full-body jump pose (played while airborne)
     hand = inst.bones.rightHand; handL = inst.bones.leftHand; footR = inst.bones.rightFoot; footL = inst.bones.leftFoot;
-    for (const a of [idleLo, idleUp, walkLo, walkUp, runLo, runUp, gunUp, dance]) if (a) { a.play(); a.setEffectiveWeight(0); }
+    for (const a of [idleLo, idleUp, walkLo, walkUp, runLo, runUp, gunUp, dance, jump]) if (a) { a.play(); a.setEffectiveWeight(0); }
     if (idleLo) idleLo.setEffectiveWeight(1); if (idleUp) idleUp.setEffectiveWeight(1);
   } else {
     buildProcedural(group, (l, r, al, ar) => { legL = l; legR = r; armL = al; armR = ar; });
@@ -40,7 +41,8 @@ export function makeRick() {
   let gun = null, gunKind = null;
   const setWeapon = (mode) => {
     const k = gunKindForMode(mode); if (k === gunKind) return; gunKind = k;
-    if (gun) group.remove(gun);
+    if (gun) { group.remove(gun); gun = null; }
+    if (mode === "handlaser") return;                          // Rick's innate palm-laser — no held weapon, fires from the hand
     gun = makeGunModel(k) || makeHeldGun(k); group.add(gun); // real CC0 model when loaded, else procedural
     if (!hand) gun.position.set(0.34, 1.16, 0.34);
   };
@@ -54,16 +56,19 @@ export function makeRick() {
   // IRON-MAN hand jets: no jetpack — while flying, fire streams down out of both palms (thrusters tracked to the hands)
   const thruster = makeThruster(); thruster.points.frustumCulled = false; group.add(thruster.points);
 
-  let phase = 0, mW = 0, sW = 0, fW = 0, fT = 0, gunPitch = 0, restDown = 0, dW = 0;
+  let phase = 0, mW = 0, sW = 0, fW = 0, fT = 0, gunPitch = 0, restDown = 0, dW = 0, jpW = 0;
   let dancing = false;
   const _muzzleV = new THREE.Vector3(), _hp = new THREE.Vector3();
   return {
     group, setWeapon,
     setDancing(on) { dancing = !!on; }, // deploy screen: Rick does the Salsa (weaponless)
-    getMuzzle() { if (!gun) return null; gun.updateWorldMatrix(true, false); return gun.localToWorld(_muzzleV.set(0, 0, 0.7)); }, // barrel tip in world space
+    getMuzzle() { // barrel tip (held gun) OR the right palm (hand-laser)
+      if (!gun) { if (!hand) return null; hand.updateWorldMatrix(true, false); return hand.getWorldPosition(_muzzleV.set(0, 0, 0)).clone(); }
+      gun.updateWorldMatrix(true, false); return gun.localToWorld(_muzzleV.set(0, 0, 0.7));
+    },
     fireKick() { fT = 0.3; }, // firing → blend in the Gunplay clip for a moment
-    _weights: () => ({ idleLo: idleLo ? +idleLo.getEffectiveWeight().toFixed(2) : 0, walkLo: walkLo ? +walkLo.getEffectiveWeight().toFixed(2) : 0, runLo: runLo ? +runLo.getEffectiveWeight().toFixed(2) : 0, walkUp: walkUp ? +walkUp.getEffectiveWeight().toFixed(2) : 0, gunUp: gunUp ? +gunUp.getEffectiveWeight().toFixed(2) : 0, gunRotX: gun ? +gun.rotation.x.toFixed(2) : 0 }), // debug: legs vs arms
-    update(dt, moving, speed = 1, thrust = 0, aimPitch = 0) {
+    _weights: () => ({ idleLo: idleLo ? +idleLo.getEffectiveWeight().toFixed(2) : 0, walkLo: walkLo ? +walkLo.getEffectiveWeight().toFixed(2) : 0, runLo: runLo ? +runLo.getEffectiveWeight().toFixed(2) : 0, walkUp: walkUp ? +walkUp.getEffectiveWeight().toFixed(2) : 0, gunUp: gunUp ? +gunUp.getEffectiveWeight().toFixed(2) : 0, jump: jump ? +jump.getEffectiveWeight().toFixed(2) : 0, hasGun: !!gun, gunRotX: gun ? +gun.rotation.x.toFixed(2) : 0 }), // debug: legs vs arms + jump + gun-present
+    update(dt, moving, speed = 1, thrust = 0, aimPitch = 0, airborne = false) {
       const jetting = thrust > 0;                                // any palm/boot-thrust (full lift OR slow-fall glide)
       gunPitch = aimPitch;                                       // barrel follows the vertical aim
       const pts = [];                                            // jet emit points (group-local): feet always, hands only when NOT shooting
@@ -80,20 +85,23 @@ export function makeRick() {
         sW += (((moving && speed > 1.5) ? 1 : 0) - sW) * Math.min(1, dt * 8);     // walk↔run blend
         fW += (((fT > 0) ? 1 : 0) - fW) * Math.min(1, dt * 14);                   // gunplay (arm) blend
         dW += (((dancing && dance) ? 1 : 0) - dW) * Math.min(1, dt * 8);           // deploy-screen Salsa (full body)
+        jpW += (((airborne && jump && thrust <= 0 && !dancing) ? 1 : 0) - jpW) * Math.min(1, dt * 12); // airborne jump pose (full body)
         const airPose = jetting ? 1 : 0;                                           // hovering/gliding → dangling idle body (unless aiming)
         const aim = fW;                                                            // firing → gun-aim upper body, OVERRIDES the hover pose
-        const m = mW * (1 - airPose), g2 = 1 - dW;                                  // locomotion only on the ground; g2 fades everything under the dance
+        const g2 = 1 - dW, gj = 1 - jpW;                                            // g2 fades everything under the dance; gj under the jump
+        const m = mW * (1 - airPose);                                              // locomotion only on the ground
         if (dance) dance.setEffectiveWeight(dW);
+        if (jump) jump.setEffectiveWeight(jpW * g2);                                // full-body jump/tuck while off the ground
         // LEGS (lower body): hover-idle when airborne, otherwise locomotion (idle / walk / run)
-        if (idleLo) idleLo.setEffectiveWeight(Math.max(1 - m, airPose) * g2);
-        if (walkLo) walkLo.setEffectiveWeight(m * (1 - sW) * g2);
-        if (runLo) runLo.setEffectiveWeight(m * sW * g2);
+        if (idleLo) idleLo.setEffectiveWeight(Math.max(1 - m, airPose) * g2 * gj);
+        if (walkLo) walkLo.setEffectiveWeight(m * (1 - sW) * g2 * gj);
+        if (runLo) runLo.setEffectiveWeight(m * sW * g2 * gj);
         // TORSO + ARMS (upper body): Gunplay aim while firing takes PRIORITY over hover + locomotion → keeps the
         // shooting animation even mid-air/while landing; otherwise hover-idle when airborne, else locomotion swing.
-        if (gunUp) gunUp.setEffectiveWeight(aim * g2);
-        if (idleUp) idleUp.setEffectiveWeight((1 - aim) * Math.max(1 - m, airPose) * g2);
-        if (walkUp) walkUp.setEffectiveWeight((1 - aim) * m * (1 - sW) * g2);
-        if (runUp) runUp.setEffectiveWeight((1 - aim) * m * sW * g2);
+        if (gunUp) gunUp.setEffectiveWeight(aim * g2 * gj);
+        if (idleUp) idleUp.setEffectiveWeight((1 - aim) * Math.max(1 - m, airPose) * g2 * gj);
+        if (walkUp) walkUp.setEffectiveWeight((1 - aim) * m * (1 - sW) * g2 * gj);
+        if (runUp) runUp.setEffectiveWeight((1 - aim) * m * sW * g2 * gj);
       } else if (legL) { // procedural fallback walk
         phase += dt * (moving ? 8.5 * speed : 2); const sw = Math.sin(phase);
         if (moving) { legL.rotation.x = sw * 0.7; legR.rotation.x = -sw * 0.7; armL.rotation.x = -sw * 0.6; armR.rotation.x = sw * 0.6; }

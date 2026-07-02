@@ -9,10 +9,11 @@ export const RICK_WALK = new RiggedAsset("/models/rick_walk.glb?v=v2", 1.95); //
 export const RICK_RUN = new RiggedAsset("/models/rick_run.glb?v=v2", 1.95);
 export const RICK_GUN = new RiggedAsset("/models/rick_gun.glb?v=v2", 1.95);
 export const RICK_DANCE = new RiggedAsset("/models/rick_dance.glb?v=v1", 1.95); // Salsa Dancing — played weaponless on the deploy screen
+export const RICK_JUMP = new RiggedAsset("/models/rick_jump.glb?v=v1", 1.95); // Jump pose — played while airborne from a jump
 export const MEESEEKS_MODEL = new RiggedAsset("/models/meeseeks.glb", 2.0);
 export const RM_HAND_BONE = "hand_r";
 
-export function rickMortyJobs() { return [RICK_MODEL.preload(), RICK_WALK.preload(), RICK_RUN.preload(), RICK_GUN.preload(), RICK_DANCE.preload(), MEESEEKS_MODEL.preload(), preloadGunModels()]; }
+export function rickMortyJobs() { return [RICK_MODEL.preload(), RICK_WALK.preload(), RICK_RUN.preload(), RICK_GUN.preload(), RICK_DANCE.preload(), RICK_JUMP.preload(), MEESEEKS_MODEL.preload(), preloadGunModels()]; }
 
 // pull extra animation clips off an already-preloaded RiggedAsset (same skeleton → they retarget by bone name)
 export function clipsOf(asset) { return (asset._asset && asset._asset.animations) || []; }

@@ -45,19 +45,15 @@ const VICTORY_CRAWL = [
   "Peace returns to the galaxy, and a fragile dawn breaks over a world made whole again...",
 ];
 
-// Rick & Morty level — the opening crawl (Rick's voice, during the drop)
+// Rick & Morty level — the opening crawl (Rick's voice, during the drop). Kept SHORT so it scrolls slow + readable.
 const RICK_INTRO_CRAWL = [
-  "Okay, okay — fun story: I <b>*burp*</b> broke time. Again. Relax, I've done this like nine times, it's basically a hobby at this point.",
-  "Turns out the entire timeline was held together by twelve dumb little <b>WHITE MAGIC RINGS</b>, and now they're scattered all over this busted-up island. Who engineers reality like that? Amateurs.",
-  "Also I <i>may</i> have leaned on the 'infinite Meeseeks' button, so the whole rock is crawling with the blue idiots. So, yeah — existence is kind of your problem now.",
-  "Grab all <b>twelve rings</b>, glue causality back together, and we're home before dinner. Easy. Probably. Let's get schwifty, baby.",
+  "Okay — I <b>*burp*</b> broke time. Again. The whole timeline was pinned together by twelve dumb <b>WHITE MAGIC RINGS</b>, now scattered across this busted-up island.",
+  "Grab all twelve, glue reality back together — and watch out, I <i>may</i> have hit the 'infinite Meeseeks' button. Let's get schwifty, baby.",
 ];
 // ...and the closing crawl after all twelve rings are recovered (Rick's voice, epic)
 const RICK_VICTORY_CRAWL = [
-  "That's twelve. <b>Twelve rings.</b> Time's stitched back together, reality stopped leaking out the edges, and the universe did NOT collapse into a screaming void. You're welcome. Everyone. Everywhere. Ever.",
-  "See, Morty? Told you it was fixable. Nobody believes the smartest man in the multiverse until the sky literally stops falling apart around them.",
-  "The Meeseeks poofed, the dead clock is ticking forward again, and somewhere an infinite number of other Ricks are taking the credit. Rude. This one did it.",
-  "Now let's bail before the cosmos finds something <i>else</i> to pin on me. <b>Wubba lubba dub dub.</b>",
+  "That's twelve. <b>Time's un-broken</b>, reality stopped leaking, and the universe did NOT implode. You're welcome — everyone, everywhere, ever.",
+  "Told you it was fixable, Morty. Now let's bail before the cosmos pins something <i>else</i> on me. <b>Wubba lubba dub dub.</b>",
 ];
 
 class Game {
@@ -162,7 +158,7 @@ class Game {
     this.levelDef.build(this.level);
     const sp = this.level.playerSpawn;
     // 3rd-person mode (e.g. the Rick & Morty level): a visible player avatar the camera orbits behind
-    if (this.cfg.view === "third") { this.playerModel = makeRick(); this.scene.add(this.playerModel.group); this._thirdPerson = true; this.controller.view = "third"; this.weapon._hideViewmodel = true; this.weapon._muzzleOverride = () => this.playerModel && this.playerModel.getMuzzle(); this.weapon._showViewmodel(); this.weapon._energyBeam = true; /* sci-fi blasters fire energy/laser bolts */ this.vfx._badass = true; /* punchy energy VFX — Rick level only; military levels keep their normal impacts */ this.weapon.damage *= 2; for (const k in this.weapon.guns) this.weapon.guns[k].dmg *= 2; ["plasma", "rocket", "laser"].forEach((k) => { if (this.cfg.balance && this.cfg.balance[k]) this.cfg.balance[k].damage *= 2; }); /* Rick's sci-fi weapons hit 2x */ this.controller.thirdDist /= 1.5; /* 1.5x closer to Rick's back */ this.controller.walkSpeed *= 0.5; this.controller.sprintSpeed *= 0.85; /* slower ground speed so footfalls match Rick's walk/run animation cadence (no foot-sliding) */ this.playerModel.group.visible = false; /* shown on the deploy screen + in play, hidden during the drop */ }
+    if (this.cfg.view === "third") { this.playerModel = makeRick(); this.scene.add(this.playerModel.group); this._thirdPerson = true; this.controller.view = "third"; this.weapon._hideViewmodel = true; this.weapon._muzzleOverride = () => this.playerModel && this.playerModel.getMuzzle(); this.weapon._showViewmodel(); this.weapon._energyBeam = true; /* sci-fi blasters fire energy/laser bolts */ this.vfx._badass = true; /* punchy energy VFX — Rick level only; military levels keep their normal impacts */ this.weapon.damage *= 2; for (const k in this.weapon.guns) this.weapon.guns[k].dmg *= 2; ["plasma", "rocket", "laser"].forEach((k) => { if (this.cfg.balance && this.cfg.balance[k]) this.cfg.balance[k].damage *= 2; }); /* Rick's sci-fi weapons hit 2x */ this.controller.thirdDist /= 1.5; /* 1.5x closer to Rick's back */ this.controller.walkSpeed *= 0.5; this.controller.sprintSpeed *= 0.85; /* slower ground speed so footfalls match Rick's walk/run animation cadence (no foot-sliding) */ this.controller.jumpStrength *= 1.7; /* Rick jumps noticeably higher */ this.playerModel.group.visible = false; /* shown on the deploy screen + in play, hidden during the drop */ }
     this.hero = "heavy";
     this._heroLobby = HERO_LOADOUT[this.hero] != null && this.cfg.intro && (this.cfg.intro.style === "parachute" || this.cfg.intro.style === "droppod") && this.cfg.view !== "third"; // 3rd-person levels (Rick) skip hero-select — you're always Rick
     if (this._heroLobby) this._setupLobby(); // hero-select lobby on the start screen
@@ -430,7 +426,8 @@ class Game {
     this.playerModel.group.rotation.y = Math.atan2(fwd.x, fwd.z); // face the look dir (we see Rick's back)
     const aimPitch = -Math.asin(Math.max(-1, Math.min(1, fwd.y))); // barrel pitches with the camera's vertical aim
     const grounded = c.onGround || (c._airT || 0) < 0.18; // tolerate 1-frame onGround flickers on bumpy terrain → no walk-anim stutter
-    this.playerModel.update(dt, c.moving && grounded, this.input.isDown("shift") ? 2 : 1, c.thrust, aimPitch); // sprint → 2x; thrust 0..1 → palm flames (1=full lift, ~0.4=slow-fall glide)
+    const airborne = !c.onGround && (c._airT || 0) > 0.12;  // genuinely off the ground (jumping/falling) → jump pose
+    this.playerModel.update(dt, c.moving && grounded, this.input.isDown("shift") ? 2 : 1, c.thrust, aimPitch, airborne); // sprint → 2x; thrust 0..1 → palm flames (1=full lift, ~0.4=slow-fall glide)
     if (c.jetting && this.vfx.dustBurst && Math.random() < 0.7) this.vfx.dustBurst(new THREE.Vector3(c.pos.x + (Math.random() - 0.5) * 0.5, c.feetY + 0.25, c.pos.z + (Math.random() - 0.5) * 0.5)); // exhaust/smoke kicked up below
     if (this.input.mouseDown && this.weapon.mode !== "sword") this.playerModel.fireKick(); // recoil while shooting
   }
@@ -464,16 +461,17 @@ class Game {
   _enemyFire(o) {
     const from = new THREE.Vector3(o.from.x, o.from.y, o.from.z);
     const to = new THREE.Vector3(o.to.x, o.to.y, o.to.z);
+    const s = Math.max(1, Math.min(4, Math.sqrt(o.sc || 1))); // bolt scale grows with the Meeseeks' size
     if (o.kind === "rocket") { // a real travelling rocket that explodes near Rick
       const dir = to.clone().sub(from).normalize();
-      const mesh = makeMissileMesh(0x6a7030, 0xb83020); // olive body + red nose + fins, aimed along flight
+      const mesh = makeMissileMesh(0x6a7030, 0xb83020); mesh.scale.multiplyScalar(s); // olive body + red nose + fins, bigger from bigger Meeseeks
       mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-      const rocket = new Projectile(this.scene, mesh, from.clone().addScaledVector(dir, 0.8), dir.multiplyScalar(24), { gravity: 2.5, fuse: 5, detonateOnHit: true });
-      rocket.enemyRocket = true; rocket.radius = 5; rocket.playerDmg = o.dmg || 30;
+      const rocket = new Projectile(this.scene, mesh, from.clone().addScaledVector(dir, 0.8 * s), dir.multiplyScalar(24), { gravity: 2.5, fuse: 5, detonateOnHit: true });
+      rocket.enemyRocket = true; rocket.radius = 5 * (1 + (s - 1) * 0.4); rocket.playerDmg = o.dmg || 30;
       this._projectiles.push(rocket);
       this.audio.explosion?.();
-    } else { // energy LASER bolt (green) — Meeseeks fire lasers, not bullets
-      this.vfx.laserBeam(from, to, 0x66ff44);
+    } else { // energy LASER bolt (green) — Meeseeks fire lasers, not bullets; thickness scales with size
+      this.vfx.laserBeam(from, to, 0x66ff44, s);
       this._onPlayerHit(o.dmg || 7);
       this.audio.zap?.();
     }
