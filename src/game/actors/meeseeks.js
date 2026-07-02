@@ -15,7 +15,7 @@ export class Meeseeks {
     this.weapon = spawn.weapon === "melee" ? "gun" : (spawn.weapon || "gun"); // every Meeseeks is armed (no melee)
     this.pos = new THREE.Vector3(spawn.x, 0, spawn.z);
     this.hp = spawn.hp || (this.giant ? 1650 : this.huge ? 510 : 135); // giants are colossally tanky
-    this.speed = spawn.speed || (this.giant ? 3.4 + Math.random() : this.huge ? 4.2 + Math.random() : 6.5 + Math.random() * 1.5);
+    this.speed = spawn.speed || (this.giant ? (3.4 + Math.random()) * 1.1 : this.huge ? (4.2 + Math.random()) * 1.1 : 6.5 + Math.random() * 1.5); // big Meeseeks stride 10% faster
     this.reach = this.weapon === "rocket" ? 22 : this.weapon === "gun" ? 14 : (this.huge ? 3.4 : 2.2);
     this.dead = false; this.counted = false; this.removable = false;
     this.aggro = false; this.aggroRange = spawn.aggro || (this.giant ? 60 : this.huge ? 46 : 34);

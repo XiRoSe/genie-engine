@@ -540,6 +540,18 @@ class Game {
     return pierce ? { list: out, point: out[out.length - 1].point } : out[0];
   }
 
+  // march a ray against the terrain heightfield → the point where the shot meets the GROUND (or null if it never does)
+  _terrainHit(start, dir, maxDist = 200) {
+    const th = this.level.terrainHeight; if (!th) return null;
+    const p = (this._thp || (this._thp = new THREE.Vector3())).copy(start); const step = 1.0;
+    for (let d = 0; d < maxDist; d += step) {
+      p.addScaledVector(dir, step);
+      const gy = th(p.x, p.z);
+      if (p.y <= gy) { p.y = gy + 0.05; return p.clone(); }
+    }
+    return null;
+  }
+
   // damage falloff: full up close, tapering to ~40% at long range
   _falloff(dmg, dist) { return dmg * Math.max(0.4, 1 - Math.max(0, dist - 28) / 150); }
 
@@ -573,7 +585,12 @@ class Game {
         if (r && r.list) { for (const hit of r.list) { hit.enemy.takeDamage(this._falloff(g.dmg, hit.dist)); this.vfx.hitPuff(hit.point); this.combat.hooks.onHitmarker?.(hit.enemy.dead); } if (r.point) end = r.point.clone(); }
       } else {
         const r = this._rayShot(dir, 200);
-        if (r) { end = r.point.clone(); if (r.enemy) { r.enemy.takeDamage(this._falloff(g.dmg, r.dist)); this.vfx.hitPuff(end); this.combat.hooks.onHitmarker?.(r.enemy.dead); } } // hit confirmation (marker + sound) — was missing on Rick's energy guns
+        if (r && r.enemy) { end = r.point.clone(); r.enemy.takeDamage(this._falloff(g.dmg, r.dist)); this.vfx.hitPuff(end); this.combat.hooks.onHitmarker?.(r.enemy.dead); } // enemy hit (marker + sound)
+        else { // no enemy — if the shot hits the GROUND, drop a force-field burst in the laser's colour
+          const gp = this._terrainHit(start, dir, 200), wallD = r ? r.dist : Infinity;
+          if (gp && start.distanceTo(gp) < wallD) { end = gp.clone(); if (this._thirdPerson) this.vfx.groundHit?.(gp, g.ecolor || g.beam || 0x44ff44); else this.vfx.hitPuff(gp); }
+          else if (r) end = r.point.clone();
+        }
       }
       if (g.pierce) { this.vfx.enemyLaser ? this.vfx.enemyLaser(start, end, g.beam) : this.vfx.tracer(start, end); this.vfx._flash && this.vfx._flash(end, 1.4, g.beam); this.vfx._flash && this.vfx._flash(start, 1.0, g.beam); } // railgun: a bold blue beam + flashes
       else if (p === 0 || g.pellets <= 3) { if (this.weapon._energyBeam) this.vfx.laserBeam(this.weapon.muzzleWorld.clone(), end, g.ecolor || 0x66ff44); else this.vfx.tracer(start, end); } // beam leaves the gun muzzle, not the camera

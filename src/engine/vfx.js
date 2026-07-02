@@ -183,7 +183,22 @@ export class VFX {
     r.mesh.position.copy(point);
     r.mesh.scale.setScalar(0.5);
     r.mesh.visible = true; r.mesh.material.opacity = 0.95;
-    r.life = r.max = 0.55; r.grow = 34;
+    r.life = r.max = 0.55; r.grow = 34; r.ground = false;
+  }
+  // laser hitting the ground → a cool FORCE-FIELD burst in the laser's colour: a flat expanding ring on the ground,
+  // a lingering glow disc, a colour flash + sparks kicked up.
+  groundHit(point, color = 0x44ff44) {
+    const r = this._next(this.rings); // flat expanding ring (force-field shock)
+    r.mesh.position.copy(point); r.mesh.position.y += 0.06; r.mesh.material.color.setHex(color);
+    r.mesh.scale.setScalar(0.5); r.mesh.visible = true; r.mesh.material.opacity = 0.95;
+    r.life = r.max = 0.6; r.grow = 30; r.ground = true;
+    const r2 = this._next(this.rings); // a second, slower inner ring for depth
+    r2.mesh.position.copy(point); r2.mesh.position.y += 0.05; r2.mesh.material.color.setHex(color);
+    r2.mesh.scale.setScalar(0.5); r2.mesh.visible = true; r2.mesh.material.opacity = 0.9;
+    r2.life = r2.max = 0.42; r2.grow = 14; r2.ground = true;
+    this._flash(point, 1.5, color);                        // colour burst at the impact
+    this._embers(point, color, 18, 10);                    // colour sparks
+    this._dustPuff(point, 0x33383f, 0.7);                  // kicked-up dust
   }
   _spawnDebris(point, n) {
     for (let i = 0; i < n; i++) {
@@ -301,10 +316,11 @@ export class VFX {
     }
     for (const r of this.rings) if (r.life > 0) {
       r.life -= dt; const k = 1 - r.life / r.max;
-      if (camQ) r.mesh.quaternion.copy(camQ);
+      if (r.ground) r.mesh.rotation.set(-Math.PI / 2, 0, 0); // laser force-field: lie FLAT on the ground
+      else if (camQ) r.mesh.quaternion.copy(camQ);           // shockwaves billboard toward the camera
       r.mesh.scale.setScalar(0.5 + k * r.grow);
       r.mesh.material.opacity = Math.max(0, (1 - k) * 0.9);
-      if (r.life <= 0) r.mesh.visible = false;
+      if (r.life <= 0) { r.mesh.visible = false; r.ground = false; }
     }
     for (const d of this.debris) if (d.life > 0) {
       d.life -= dt; d.vel.y -= 16 * dt;

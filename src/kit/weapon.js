@@ -63,10 +63,10 @@ export class Weapon {
     camera.add(this.shotgunGun);
     // generic hitscan guns (one shared viewmodel slot; model swapped per mode)
     this.guns = {
-      handlaser: { model: null, rate: 0.15, ammo: 9999, dmg: 7, pellets: 1, spread: 0.02, sound: "zap", pitch: 1.15, beam: 0x66ff44, ecolor: 0x44ff44, esound: "zap", kick: 0.03, fromHands: true }, // Rick's innate GREEN palm-lasers — weakest (infinite); scavenged blasters hit harder
+      handlaser: { model: null, rate: 0.14, ammo: 9999, dmg: 12, pellets: 1, spread: 0.02, sound: "zap", pitch: 1.15, beam: 0x66ff44, ecolor: 0x44ff44, esound: "zap", kick: 0.03, fromHands: true }, // Rick's innate GREEN palm-lasers (infinite); scavenged blasters still hit harder
       smg:     { model: "smg",     rate: 0.075, ammo: 96,  dmg: 16,  pellets: 1, spread: 0.03, sound: "shoot",   pitch: 1.25, beam: 0xfff0bf, kick: 0.05 },
-      minigun: { model: "minigun", rate: 0.05,  ammo: 150, dmg: 12,  pellets: 1, spread: 0.06, sound: "shoot",   pitch: 0.78, beam: 0xfff0bf, ecolor: 0x66ff44, esound: "zap",   kick: 0.04 },
-      burst:   { model: "smg",     rate: 0.32,  ammo: 72,  dmg: 22,  pellets: 3, spread: 0.02, sound: "shoot",   pitch: 1.0,  beam: 0xfff0bf, ecolor: 0xc06bff, esound: "laser", kick: 0.1 },
+      minigun: { model: "minigun", rate: 0.05,  ammo: 150, dmg: 16,  pellets: 1, spread: 0.06, sound: "shoot",   pitch: 0.78, beam: 0xfff0bf, ecolor: 0x66ff44, esound: "zap",   kick: 0.04 },
+      burst:   { model: "smg",     rate: 0.32,  ammo: 72,  dmg: 30,  pellets: 3, spread: 0.02, sound: "shoot",   pitch: 1.0,  beam: 0xfff0bf, ecolor: 0xc06bff, esound: "laser", kick: 0.1 },
       railgun: { model: "railgun", rate: 1.1,   ammo: 14,  dmg: 240, pellets: 1, spread: 0,    sound: "railgun", pitch: 0.7,  beam: 0x46ff5a, kick: 0.16, pierce: true },
       flak:    { model: "minigun", rate: 0.45,  ammo: 36,  dmg: 18,  pellets: 6, spread: 0.16, sound: "shotgun", pitch: 1.0,  beam: 0xffcaa0, kick: 0.16 },
     };
