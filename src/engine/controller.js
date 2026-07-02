@@ -166,12 +166,11 @@ export class Controller {
     const wantJet = input.isDown("e") && !this.swimming && this._jetFuel > 0;
     const handJets = this.view === "third";               // Rick fires his palm-jets — can't full-thrust AND shoot
     this.jetting = wantJet && !(handJets && firing);
-    if (this.jetting) { this.vy = this.jetForce; this.onGround = false; this._jetFuel = Math.max(0, this._jetFuel - dt); }
-    // REDUCED-THRUST GLIDE (Rick): whenever he's descending from a height, small palm flames cushion the fall
-    // (slow-fall). This is the "landing fire" — it shows on ANY real drop (from flight or the sky), not just when
-    // shooting. Caps the fall speed and sips fuel. Gated by height so tiny hops near the ground don't trigger it.
+    if (this.jetting) { this.vy = this.jetForce; this.onGround = false; this._jetFuel = Math.max(0, this._jetFuel - dt); this._flew = true; } // remember he actually flew this air-time
+    // REDUCED-THRUST GLIDE (Rick): descending under thrust → small palm/boot flames cushion the fall (slow-fall).
+    // Only AFTER actually flying (jetpack), or falling from a genuine height (cliff/sky) — NOT from a plain jump.
     const heightAG = this.feetY - this._groundUnder(this.pos.x, this.pos.z);
-    this.gliding = handJets && !this.onGround && !this.swimming && this.vy < 0 && heightAG > 2.5 && this._jetFuel > 0;
+    this.gliding = handJets && !this.onGround && !this.swimming && this.vy < 0 && this._jetFuel > 0 && (this._flew || heightAG > 7);
     if (this.gliding) { this.vy = Math.max(this.vy, -3.4); this.onGround = false; this._jetFuel = Math.max(0, this._jetFuel - dt * 0.4); }
     this.thrust = this.jetting ? 1 : (this.gliding ? 0.42 : 0); // jet intensity: full lift, or the small slow-fall glide (boots + palms)
 
@@ -189,7 +188,7 @@ export class Controller {
       if (this.feetY <= groundY) {
         this.feetY = groundY; this.vy = 0; this.onGround = true;
         if (this._airT > 0.22) { this._stepT = 0; this.onLand?.(); } // landed after a real jump/jetpack (not a 1-frame terrain bump)
-        this._airT = 0;
+        this._airT = 0; this._flew = false; // reset flight memory on touchdown → next plain jump won't flame
       } else this.onGround = false;
     }
     if (!this.onGround && !this.swimming) this._airT = (this._airT || 0) + dt; // accumulate airborne time

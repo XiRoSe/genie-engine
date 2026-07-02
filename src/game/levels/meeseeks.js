@@ -24,10 +24,16 @@ export const meeseeks = {
   build(b) {
     buildArcfallIsland(b, { bossKind: "meeseeks" });            // the full ARCFALL island + arcs + weapons, with a HUGE Meeseeks guardian
     // no welcome party — Meeseeks rain from the sky every 5s during play (main._dropReinforcement)
-    // Rick starts with only his palm-lasers — the real blasters are SCAVENGED (walk over a crate to acquire, Q to cycle)
-    b.giftCrate(0, 40, "rifle"); b.giftCrate(-46, -10, "minigun"); b.giftCrate(54, 18, "burst");
-    b.giftCrate(-24, 92, "plasma"); b.giftCrate(88, -34, "launcher");
-    b.giftCrate(28, -70, "rifle"); b.giftCrate(-96, 40, "burst"); b.giftCrate(110, 60, "plasma"); b.giftCrate(-70, -58, "launcher"); b.giftCrate(120, -8, "minigun");
+    // Rick starts with only his GREEN palm-lasers (weakest) — the real blasters are SCAVENGED, and there are MANY
+    // spawns dotted across the whole island (walk over a crate to acquire; Q to cycle). Harder guns hit much harder.
+    const WEAPON_SPOTS = [
+      ["rifle", 0, 40], ["rifle", 28, -70], ["rifle", -60, 70], ["rifle", 96, 4], ["rifle", -20, -110], ["rifle", 130, 40],
+      ["minigun", -46, -10], ["minigun", 120, -8], ["minigun", 40, 100], ["minigun", -110, -40], ["minigun", 70, -90],
+      ["burst", 54, 18], ["burst", -96, 40], ["burst", 10, 120], ["burst", -40, -30], ["burst", 100, 90],
+      ["plasma", -24, 92], ["plasma", 110, 60], ["plasma", -80, -70], ["plasma", 50, -40], ["plasma", -130, 20],
+      ["launcher", 88, -34], ["launcher", -70, -58], ["launcher", 20, 70], ["launcher", -100, 80], ["launcher", 60, 30],
+    ];
+    for (const [kind, x, z] of WEAPON_SPOTS) b.giftCrate(x, z, kind);
     // extra ammo caches dotted across the island (Rick burns through the scavenged arsenal fast)
     for (const [x, z] of [[0, 60], [-50, 4], [50, 6], [-30, -40], [42, -42], [-80, 34], [82, 30], [4, -72], [-110, -8], [122, 22], [-22, 130], [62, 112], [102, -50], [-92, 82], [18, 14], [-58, -64]]) b.giftCrate(x, z, "ammo");
   },

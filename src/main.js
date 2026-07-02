@@ -699,9 +699,13 @@ class Game {
       if (p.detonateOnHit && !p.done) {
         for (const e of this.combat.enemies) {
           if (e.dead) continue;
-          const ex = e.pos.x - p.pos.x, ez = e.pos.z - p.pos.z, hr = e.boss ? 6 : e.kind === "robot" ? 4.5 : 2.6;
+          // detonation volume scales with the target — huge/giant Meeseeks are wide + tall, so a fixed 2.6m radius
+          // let rockets sail straight through them. Derive the radius/height from the Meeseeks' size (sc).
+          const sc = e.sc || 1;
+          const hr = e.boss ? 6 : e.kind === "robot" ? 4.5 : e.kind === "meeseeks" ? Math.max(2.6, 0.8 * sc) : 2.6;
+          const ex = e.pos.x - p.pos.x, ez = e.pos.z - p.pos.z;
           if (ex * ex + ez * ez > hr * hr) continue;
-          const hTop = (e.group.position.y || 0) + (e.boss ? 14 : e.kind === "robot" ? 12 : 4);
+          const hTop = (e.group.position.y || 0) + (e.boss ? 14 : e.kind === "robot" ? 12 : e.kind === "meeseeks" ? 2.1 * sc : 4);
           if (p.pos.y <= hTop + 1 && p.pos.y >= (e.group.position.y || 0) - 1) { p.done = true; break; } // within the enemy's body
         }
       }
