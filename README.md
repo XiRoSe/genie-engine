@@ -15,11 +15,11 @@ top of it fast.
 
 ## Three games, one engine
 
-**▶ [Play MEESEEKS MAYHEM](https://nightops-first-fps.up.railway.app/?level=meeseeks_mayhem)** — a *third-person* Rick & Morty romp: you're **Rick**, time is broken (again), and you must recover the **12 white magic rings** while fending off a rain of Mr. Meeseeks — regular, huge, and rare **kaiju-sized giants**. Start with infinite **green hand-lasers**, scavenge real blasters, jet around with **Iron-Man boots + palms**, and poof the blue idiots.
+**▶ [Play MEESEEKS MAYHEM](https://genie-web-game-engine.up.railway.app/?level=meeseeks_mayhem)** — a *third-person* Rick & Morty romp: you're **Rick**, time is broken (again), and you must recover the **12 white magic rings** while fending off a rain of Mr. Meeseeks — regular, huge, and rare **kaiju-sized giants**. Start with infinite **green hand-lasers**, scavenge real blasters, jet around with **Iron-Man boots + palms**, and poof the blue idiots.
 
-**▶ [Play ARCFALL](https://nightops-first-fps.up.railway.app/?level=arcfall)** — a *first-person* daytime island survival hunt: drop onto a time-fractured island, recover the **12 lost Arcs**, and survive the dinosaurs and giant mechs that guard them.
+**▶ [Play ARCFALL](https://genie-web-game-engine.up.railway.app/?level=arcfall)** — a *first-person* daytime island survival hunt: drop onto a time-fractured island, recover the **12 lost Arcs**, and survive the dinosaurs and giant mechs that guard them.
 
-**▶ [Play NightOps](https://nightops-first-fps.up.railway.app/?level=desert-base)** — a *first-person* night military raid: infiltrate the desert base and **reach & disarm the bomb** before detonation.
+**▶ [Play NightOps](https://genie-web-game-engine.up.railway.app/?level=desert-base)** — a *first-person* night military raid: infiltrate the desert base and **reach & disarm the bomb** before detonation.
 
 > All three ship on the same engine + kit — proof it generalizes across views, genres and art styles
 > (reuse just `engine/`, the whole `kit/`, or fork a `game/`).

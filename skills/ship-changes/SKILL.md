@@ -41,7 +41,7 @@ The JS bundle filename is content-hashed, so poll the live page until it serves 
 
 ```bash
 TARGET=$(grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' dist/index.html | head -1)
-# loop curl https://nightops-first-fps.up.railway.app/?t=$i until it returns $TARGET, then report "live"
+# loop curl https://genie-web-game-engine.up.railway.app/?t=$i until it returns $TARGET, then report "live"
 ```
 
 For a **server.js-only** change (no client bundle change) the hash won't move — instead poll for a marker
