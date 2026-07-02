@@ -237,8 +237,10 @@ export class VFX {
     core.mesh.material.color.copy((this._c0 || (this._c0 = new THREE.Color())).setHex(color).lerp((this._cW || (this._cW = new THREE.Color(0xffffff))), 0.55));
     core.mesh.visible = true; core.mesh.material.opacity = 1; core.life = core.max = beam.max;
     const s = sizeScale;
-    if (bad) { this._flash(a, 0.9 * s, 0xffffff); this._flash(a, 1.5 * s, color); this._flash(b, 1.3 * s, 0xffffff); this._flash(b, 2.2 * s, color); }
-    else { this._flash(a, 0.4 * s, 0xffffff); this._flash(b, 0.75 * s, color); }
+    // muzzle/impact flashes tinted toward the BEAM colour (a hot bright version), not pure white → the bolt reads in its true colour (green stays green)
+    const hot = (this._c1 || (this._c1 = new THREE.Color())).setHex(color).lerp((this._cW || (this._cW = new THREE.Color(0xffffff))), 0.6).getHex();
+    if (bad) { this._flash(a, 0.9 * s, hot); this._flash(a, 1.5 * s, color); this._flash(b, 1.3 * s, hot); this._flash(b, 2.2 * s, color); }
+    else { this._flash(a, 0.4 * s, hot); this._flash(b, 0.75 * s, color); }
   }
 
   // sci-fi plasma detonation: a blue/cyan energy fireball + shockwave + sparks

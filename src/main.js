@@ -411,7 +411,7 @@ class Game {
 
   _weaponName(mode) {
     if (this.cfg.weaponNames && this.cfg.weaponNames[mode]) return this.cfg.weaponNames[mode]; // per-level sci-fi names
-    return { handlaser: "PALM LASERS", rifle: "MK-4 CARBINE", smg: "SMG", minigun: "MINIGUN", burst: "BURST RIFLE", railgun: "RAILGUN", sword: "ARC BLADE", shotgun: "PULSE SHOTGUN", flak: "FLAK CANNON", launcher: "MISSILE LAUNCHER", plasma: "PLASMA CANNON", laser: "PORTAL GUN" }[mode] || "MK-4 CARBINE";
+    return { handlaser: "HAND LASERS", rifle: "MK-4 CARBINE", smg: "SMG", minigun: "MINIGUN", burst: "BURST RIFLE", railgun: "RAILGUN", sword: "ARC BLADE", shotgun: "PULSE SHOTGUN", flak: "FLAK CANNON", launcher: "MISSILE LAUNCHER", plasma: "PLASMA CANNON", laser: "PORTAL GUN" }[mode] || "MK-4 CARBINE";
   }
 
   // 3rd-person: the engine controller already orbits the camera (controller.view === "third"). Here we just

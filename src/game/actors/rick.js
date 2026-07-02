@@ -8,13 +8,13 @@ import { makeGunModel } from "./gunmodels.js";
 // weapon rides the right-hand bone. Falls back to a procedural homage if the rig isn't present.
 export function makeRick() {
   const group = new THREE.Group();
-  let mixer = null, hand = null, handL = null, footR = null, footL = null;
+  let mixer = null, hand = null, handL = null, footR = null, footL = null, uaR = null, uaL = null;
   // Upper/lower-body split actions: legs run the locomotion clip, torso+arms crossfade to the Gunplay pose.
   let idleLo, idleUp, walkLo, walkUp, runLo, runUp, gunUp, dance, jump;
   let legL, legR, armL, armR; // procedural fallback handles
 
   if (RICK_MODEL.ready) {
-    const inst = RICK_MODEL.make({ rightHand: RM_HAND_BONE, leftHand: "hand_l", rightFoot: "foot_r", leftFoot: "foot_l" });
+    const inst = RICK_MODEL.make({ rightHand: RM_HAND_BONE, leftHand: "hand_l", rightFoot: "foot_r", leftFoot: "foot_l", rUpper: "upperarm_r", lUpper: "upperarm_l" });
     group.add(inst.model);
     mixer = new THREE.AnimationMixer(inst.model);
     // Each Mixamo clip is split into an upper half (torso/arms/head/hands) and a lower half (pelvis/legs/feet). The
@@ -28,7 +28,7 @@ export function makeRick() {
     gunUp = mk(rGun, true); // upper half of the gun stance (torso+arms); legs come from locomotion
     const rDance = clipsOf(RICK_DANCE)[0]; if (rDance) { dance = mixer.clipAction(rDance); dance.setEffectiveTimeScale(0.7); } // full-body Salsa for the deploy screen (a touch slower)
     const rJump = clipsOf(RICK_JUMP)[0]; if (rJump) jump = mixer.clipAction(rJump); // full-body jump pose (played while airborne)
-    hand = inst.bones.rightHand; handL = inst.bones.leftHand; footR = inst.bones.rightFoot; footL = inst.bones.leftFoot;
+    hand = inst.bones.rightHand; handL = inst.bones.leftHand; footR = inst.bones.rightFoot; footL = inst.bones.leftFoot; uaR = inst.bones.rUpper; uaL = inst.bones.lUpper;
     for (const a of [idleLo, idleUp, walkLo, walkUp, runLo, runUp, gunUp, dance, jump]) if (a) { a.play(); a.setEffectiveWeight(0); }
     if (idleLo) idleLo.setEffectiveWeight(1); if (idleUp) idleUp.setEffectiveWeight(1);
   } else {
@@ -60,6 +60,22 @@ export function makeRick() {
   let phase = 0, mW = 0, sW = 0, fW = 0, fT = 0, gunPitch = 0, restDown = 0, dW = 0, jpW = 0;
   let dancing = false;
   const _muzzleV = new THREE.Vector3(), _hp = new THREE.Vector3();
+  // Procedurally aim an arm so the hand points FORWARD (character +Z) — used for the hand-laser's "both palms
+  // forward" pose. World-space aim (robust to the rig's bone axes), converted to the bone's local space, blended by w.
+  const _sh = new THREE.Vector3(), _hw = new THREE.Vector3(), _cur = new THREE.Vector3(), _des = new THREE.Vector3();
+  const _aq = new THREE.Quaternion(), _wq = new THREE.Quaternion(), _pq = new THREE.Quaternion(), _gq = new THREE.Quaternion();
+  const aimArmForward = (upper, handBone, side, w) => {
+    if (!upper || !handBone || w <= 0.02) return;
+    upper.updateWorldMatrix(true, true);
+    upper.getWorldPosition(_sh); handBone.getWorldPosition(_hw);
+    _cur.copy(_hw).sub(_sh); if (_cur.lengthSq() < 1e-6) return; _cur.normalize();     // current arm direction (world)
+    group.getWorldQuaternion(_gq);
+    _des.set(side * 0.3, -0.12, 1).normalize().applyQuaternion(_gq);                   // desired: forward, slightly out + slightly down
+    _aq.setFromUnitVectors(_cur, _des);                                                // world delta rotation
+    upper.getWorldQuaternion(_wq); _wq.premultiply(_aq);                               // target world quat = delta * current
+    upper.parent.getWorldQuaternion(_pq).invert(); _wq.premultiply(_pq);               // → bone-local space
+    upper.quaternion.slerp(_wq, w); upper.updateWorldMatrix(true, true);               // blend + refresh the hand for the beam muzzle
+  };
   return {
     group, setWeapon,
     setDancing(on) { dancing = !!on; }, // deploy screen: Rick does the Salsa (weaponless)
@@ -88,7 +104,7 @@ export function makeRick() {
         dW += (((dancing && dance) ? 1 : 0) - dW) * Math.min(1, dt * 8);           // deploy-screen Salsa (full body)
         jpW += (((airborne && jump && thrust <= 0 && !dancing) ? 1 : 0) - jpW) * Math.min(1, dt * 12); // airborne jump pose (full body)
         const airPose = jetting ? 1 : 0;                                           // hovering/gliding → dangling idle body (unless aiming)
-        const aim = laserHands ? 1 : fW;                                           // hand-laser → both hands held FORWARD always; else firing → gun-aim
+        const aim = laserHands ? 0 : fW;                                           // held guns → gun-aim clip when firing; hand-laser uses the procedural both-arms-forward pose instead (below)
         const g2 = 1 - dW, gj = 1 - jpW;                                            // g2 fades everything under the dance; gj under the jump
         const m = mW * (1 - airPose);                                              // locomotion only on the ground
         if (dance) dance.setEffectiveWeight(dW);
@@ -103,6 +119,9 @@ export function makeRick() {
         if (idleUp) idleUp.setEffectiveWeight((1 - aim) * Math.max(1 - m, airPose) * g2 * gj);
         if (walkUp) walkUp.setEffectiveWeight((1 - aim) * m * (1 - sW) * g2 * gj);
         if (runUp) runUp.setEffectiveWeight((1 - aim) * m * sW * g2 * gj);
+        // HAND-LASER: point BOTH arms straight forward while firing (procedural, blended by fW) — a clean palms-forward
+        // pose, distinct from the rifle gunplay clip. Idle when not firing → Rick just stands.
+        if (laserHands && fW > 0.02 && !dancing && jpW < 0.5) { aimArmForward(uaR, hand, 1, fW); aimArmForward(uaL, handL, -1, fW); }
       } else if (legL) { // procedural fallback walk
         phase += dt * (moving ? 8.5 * speed : 2); const sw = Math.sin(phase);
         if (moving) { legL.rotation.x = sw * 0.7; legR.rotation.x = -sw * 0.7; armL.rotation.x = -sw * 0.6; armR.rotation.x = sw * 0.6; }
