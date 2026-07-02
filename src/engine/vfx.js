@@ -46,6 +46,9 @@ export class VFX {
     // expanding shockwave rings (billboarded)
     const ring = new THREE.RingGeometry(0.55, 0.72, 28);
     this.rings = this._pool(4, ring, () => noOutline(new THREE.MeshBasicMaterial({ color: 0xffe6b0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })));
+    // energy FORCE-FIELD bubbles: a translucent sphere that grows + fades (normal-blended so the colour reads true)
+    const ball = new THREE.SphereGeometry(1, 20, 14);
+    this.forceballs = this._pool(10, ball, () => noOutline(new THREE.MeshBasicMaterial({ color: 0x44ff44, transparent: true, depthWrite: false, opacity: 0.5, side: THREE.DoubleSide })));
     // flying debris chunks
     const chunk = new THREE.BoxGeometry(0.22, 0.22, 0.22);
     this.debris = this._pool(26, chunk, () => new THREE.MeshStandardMaterial({ color: 0x2a2724, roughness: 0.9 }));
@@ -185,19 +188,15 @@ export class VFX {
     r.mesh.visible = true; r.mesh.material.opacity = 0.95;
     r.life = r.max = 0.55; r.grow = 34; r.ground = false;
   }
-  // laser hitting the ground → a cool FORCE-FIELD burst in the laser's colour: a flat expanding ring on the ground,
-  // a lingering glow disc, a colour flash + sparks kicked up.
+  // laser hitting the ground → a growing + fading energy FORCE-FIELD BUBBLE (3D sphere) in the laser's colour,
+  // with a hot colour flash + sparks. The AoE damage is applied by the caller (main._laserGroundBlast).
   groundHit(point, color = 0x44ff44) {
-    const r = this._next(this.rings); // flat expanding ring (force-field shock)
-    r.mesh.position.copy(point); r.mesh.position.y += 0.06; r.mesh.material.color.setHex(color);
-    r.mesh.scale.setScalar(0.5); r.mesh.visible = true; r.mesh.material.opacity = 0.95;
-    r.life = r.max = 0.6; r.grow = 30; r.ground = true;
-    const r2 = this._next(this.rings); // a second, slower inner ring for depth
-    r2.mesh.position.copy(point); r2.mesh.position.y += 0.05; r2.mesh.material.color.setHex(color);
-    r2.mesh.scale.setScalar(0.5); r2.mesh.visible = true; r2.mesh.material.opacity = 0.9;
-    r2.life = r2.max = 0.42; r2.grow = 14; r2.ground = true;
-    this._flash(point, 1.5, color);                        // colour burst at the impact
-    this._embers(point, color, 18, 10);                    // colour sparks
+    const s = this._next(this.forceballs);                 // 3D dome that swells + fades
+    s.mesh.position.copy(point); s.mesh.position.y += 0.3; s.mesh.material.color.setHex(color);
+    s.mesh.scale.setScalar(0.4); s.mesh.visible = true; s.mesh.material.opacity = 0.6;
+    s.life = s.max = 0.5; s.grow = 4.4;                     // swells to ~4.8 radius as it fades
+    this._flash(point, 1.7, color);                        // bright colour burst at the impact
+    this._embers(point, color, 20, 12);                    // colour sparks fly out
     this._dustPuff(point, 0x33383f, 0.7);                  // kicked-up dust
   }
   _spawnDebris(point, n) {
@@ -316,11 +315,16 @@ export class VFX {
     }
     for (const r of this.rings) if (r.life > 0) {
       r.life -= dt; const k = 1 - r.life / r.max;
-      if (r.ground) r.mesh.rotation.set(-Math.PI / 2, 0, 0); // laser force-field: lie FLAT on the ground
-      else if (camQ) r.mesh.quaternion.copy(camQ);           // shockwaves billboard toward the camera
+      if (camQ) r.mesh.quaternion.copy(camQ);
       r.mesh.scale.setScalar(0.5 + k * r.grow);
       r.mesh.material.opacity = Math.max(0, (1 - k) * 0.9);
-      if (r.life <= 0) { r.mesh.visible = false; r.ground = false; }
+      if (r.life <= 0) r.mesh.visible = false;
+    }
+    for (const s of this.forceballs) if (s.life > 0) { // energy bubble: swell out + fade
+      s.life -= dt; const k = 1 - s.life / s.max;
+      s.mesh.scale.setScalar(0.4 + k * s.grow);
+      s.mesh.material.opacity = Math.max(0, 0.6 * (1 - k) * (1 - k)); // fade faster than it grows
+      if (s.life <= 0) s.mesh.visible = false;
     }
     for (const d of this.debris) if (d.life > 0) {
       d.life -= dt; d.vel.y -= 16 * dt;

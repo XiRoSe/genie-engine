@@ -55,6 +55,7 @@ export class Audio {
       battle_theme: "/audio/battle_theme.mp3", // Pacific Rim — opening crawl + victory finale (needed first)
       game_theme: "/audio/game_theme.mp3",     // Oliver Tree "Alien Boy" — the in-game loop (needed ~23s in)
       schwifty: "/audio/schwifty.mp3",          // Rick & Morty level's in-game track
+      flamenco: "/audio/flamenco.mp3",          // Spanish flamenco/latino — Rick's deploy/waiting screen
       rick_wabba: "/audio/rick_wabba.mp3",      // Rick catchphrase (land + win)
       meeseeks_voice: "/audio/meeseeks_voice.mp3", // Meeseeks announces itself on landing
     };
@@ -390,6 +391,12 @@ export class Audio {
   startSalsaMusic() {
     if (!this.ctx || this._salsa) return;
     const ctx = this.ctx, bus = ctx.createGain(); bus.gain.value = 0; bus.connect(this.master);
+    if (this.buffers.flamenco) { // real Spanish flamenco track (looping) — preferred
+      bus.gain.linearRampToValueAtTime(0.6, ctx.currentTime + 1.0);
+      const s = ctx.createBufferSource(); s.buffer = this.buffers.flamenco; s.loop = true; s.connect(bus); s.start();
+      this._salsa = { bus, src: s, stopped: true, interval: null, real: true };
+      return;
+    }
     bus.gain.linearRampToValueAtTime(0.32, ctx.currentTime + 0.8);
     const f = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
     // i–iv–V–i in A minor, one chord per bar (montuno vamp)
@@ -420,7 +427,7 @@ export class Audio {
     };
     playBar(); m.interval = setInterval(playBar, bar * 1000);
   }
-  stopSalsaMusic() { const m = this._salsa; if (!m) return; this._salsa = null; m.stopped = true; if (m.interval) clearInterval(m.interval); const t = this.ctx.currentTime; m.bus.gain.cancelScheduledValues(t); m.bus.gain.setValueAtTime(m.bus.gain.value, t); m.bus.gain.linearRampToValueAtTime(0, t + 0.4); }
+  stopSalsaMusic() { const m = this._salsa; if (!m) return; this._salsa = null; m.stopped = true; if (m.interval) clearInterval(m.interval); const t = this.ctx.currentTime; m.bus.gain.cancelScheduledValues(t); m.bus.gain.setValueAtTime(m.bus.gain.value, t); m.bus.gain.linearRampToValueAtTime(0, t + 0.5); if (m.src) { try { m.src.stop(t + 0.6); } catch (e) { /* already stopped */ } } }
 
   startLobbyMusic() {
     if (!this.ctx || this._lobbyMusic) return;

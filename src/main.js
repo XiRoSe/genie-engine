@@ -552,6 +552,13 @@ class Game {
     return null;
   }
 
+  // small AoE splash where a Rick laser strikes the GROUND — the force-field bubble does a bit of area damage
+  _laserGroundBlast(point, baseDmg) {
+    const R = 4.6, R2 = R * R, dmg = Math.max(4, (baseDmg || 8) * 0.5); let hit = false;
+    for (const e of this.combat.enemies) { if (e.dead) continue; const dx = e.pos.x - point.x, dz = e.pos.z - point.z; if (dx * dx + dz * dz < R2) { e.takeDamage(dmg); hit = true; } }
+    if (hit) this.combat.hooks.onHitmarker?.(false);
+  }
+
   // damage falloff: full up close, tapering to ~40% at long range
   _falloff(dmg, dist) { return dmg * Math.max(0.4, 1 - Math.max(0, dist - 28) / 150); }
 
@@ -588,7 +595,7 @@ class Game {
         if (r && r.enemy) { end = r.point.clone(); r.enemy.takeDamage(this._falloff(g.dmg, r.dist)); this.vfx.hitPuff(end); this.combat.hooks.onHitmarker?.(r.enemy.dead); } // enemy hit (marker + sound)
         else { // no enemy — if the shot hits the GROUND, drop a force-field burst in the laser's colour
           const gp = this._terrainHit(start, dir, 200), wallD = r ? r.dist : Infinity;
-          if (gp && start.distanceTo(gp) < wallD) { end = gp.clone(); if (this._thirdPerson) this.vfx.groundHit?.(gp, g.ecolor || g.beam || 0x44ff44); else this.vfx.hitPuff(gp); }
+          if (gp && start.distanceTo(gp) < wallD) { end = gp.clone(); if (this._thirdPerson) { this.vfx.groundHit?.(gp, g.ecolor || g.beam || 0x44ff44); this._laserGroundBlast(gp, g.dmg); } else this.vfx.hitPuff(gp); }
           else if (r) end = r.point.clone();
         }
       }
