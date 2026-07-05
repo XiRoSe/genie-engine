@@ -15,8 +15,9 @@ export const myLevel = {
   id: "my-level",
   name: "RAID THE OUTPOST",
   config: {                                  // per-level overrides, merged ONE level deep onto game/config.js
+    view: "third",                                      // OMIT → first-person. "third" = visible player actor + gun (see MEESEEKS MAYHEM)
     scene: { sky: "day", fog: { color: 0x9a7fb0, near: 240, far: 1300 }, fov: 75 },
-    objective: { type: "collect", count: 12 },          // or "defuse" / "exfil"
+    objective: { type: "collect", count: 12, noun: "Ring", startLabel: "COLLECT THE 12 WHITE RINGS", startSub: "to save the time" }, // "collect"/"defuse"/"exfil"; noun/icon/startLabel/startSub are optional label overrides
     intro: { enabled: true, style: "droppod" },         // "droppod" | "parachute" | classic
     player: { grenades: 4, startLoadout: ["sword"] },   // OMIT startLoadout → standard rifle+launcher arsenal
   },

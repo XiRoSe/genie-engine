@@ -32,6 +32,10 @@ else if (firing && weapon.canFire(t)) { combat.tryShoot(t); ... }               
 - `this.guns` — stats for dict-guns (`{rate,kick,sound,pitch,dmg,...}`). `this.A[mode]` — ammo `{mag,size}`.
 - `this.allWeapons` — every weapon id. Viewmodel visibility is set in `_showViewmodel()` (one group per mode).
 - `canFireGun(t)` = `!!guns[mode] && !reloading && A[mode].mag>0 && (t - _gunLast[mode]) >= guns[mode].rate`.
+- **Energy weapons** (sci-fi levels): a gun entry adds `ecolor` (bolt/impact hue), `beam` (beam core hue),
+  `esound`, and `fromHands` (fire from the actor's hands, no viewmodel — e.g. Rick's `handlaser`, infinite ammo).
+  The level/loadout sets `weapon._energyBeam = true`; then hits draw a `laserBeam` instead of a `tracer` and the
+  impact blob is coloured with `ecolor` (see below). Kinetic weapons leave `_energyBeam` false and use the warm hue.
 
 ## To add a weapon
 
@@ -50,3 +54,8 @@ else if (firing && weapon.canFire(t)) { combat.tryShoot(t); ... }               
   enemy register even when the ground/a low rise is technically nearer — bump it if shots over undulating
   terrain or at tall mechs miss. `pierce: true` collects all enemies before cover (railgun).
 - Enemy hitboxes are capsules/boxes; big mechs (scale 2) have a tall hitbox centered high — aim center-mass.
+- **Impacts are surface-aware and go through ONE call:** `_rayShot(dir)` returns `{ point, normal, ... }` and
+  `_terrainHit` returns `{ point, normal }` (heightfield-gradient normal). Pass that real normal to
+  `vfx.impact(point, normal, color)` — it lays a hit blob oriented to the surface. Colour = `weapon.ecolor` for
+  energy, default warm for kinetic. Don't hand-roll a hit effect and don't fake the normal from the ray — see
+  `vfx-and-cinematics` › "Surface-aware impacts". New weapons/surfaces get correct impacts for free.
