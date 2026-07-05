@@ -6,6 +6,12 @@ export class CollectObjective {
     this.game = game;
     this.total = game.cfg.objective.count || 12; // arcs are placed during level build (after this runs)
     this.collected = 0;
+    const o = game.cfg.objective || {};
+    this.noun = o.noun || "Arc";                 // "Arc" (ARCFALL) or "Ring" (Meeseeks Mayhem)
+    this.nounU = this.noun.toUpperCase();
+    this.icon = o.icon || "✦";
+    this.startLabel = o.startLabel || `RECOVER THE ${this.total} ${this.nounU}S`; // big start banner
+    this.startSub = o.startSub || "to repair time";
     // story beats fired as Arcs are recovered — each names a tribe whose territory holds the next Arcs
     this.beats = {
       1: "ARC SECURED — THE TIMELINE FLICKERS",
@@ -25,9 +31,11 @@ export class CollectObjective {
   }
 
   onPlayStart() {
-    this.game.hud.setObjective('Recover the lost <span class="arrow">ARCS ✦</span>');
-    this.game.hud.setCounter("Arcs", `${this.collected} / ${this.total}`);
-    this.game.hud.notify("REPAIR TIME — RECOVER THE 12 ARCS");
+    this.game.hud.setObjective(`Collect the ${this.total} <span class="arrow">${this.nounU}S ${this.icon}</span>`);
+    this.game.hud.setCounter(this.noun + "s", `${this.collected} / ${this.total}`);
+    // prominent STARTING label (center banner) — e.g. "COLLECT THE 12 WHITE RINGS · to save time"
+    this.game.hud.showBanner(this.startLabel, this.startSub, 4600);
+    this.game.hud.notify(`${this.startLabel} ${this.icon}`);
   }
 
   update(dt, t, presses) {
@@ -38,7 +46,7 @@ export class CollectObjective {
       this._region = q;
       const names = { NW: "NORTH RUINS · SAURIAN BROOD", NE: "EAST HIGHLANDS · IRON LEGION", SE: "SOUTH FLATS · HOLLOW WATCH", SW: "PALACE APPROACH · VAULT GARRISON" };
       const left = g.level.arcs.filter((a) => !a.taken && (a.x < 0 ? (a.z >= 0 ? "NW" : "SW") : (a.z >= 0 ? "NE" : "SE")) === q).length;
-      g.hud.showBanner(names[q], `${left} ARC${left === 1 ? "" : "S"} HERE`);
+      g.hud.showBanner(names[q], `${left} ${this.nounU}${left === 1 ? "" : "S"} HERE`);
     }
     for (const a of g.level.arcs) {
       if (a.taken) continue;
@@ -47,11 +55,11 @@ export class CollectObjective {
         a.taken = true; a.group.visible = false;
         this.collected++;
         g.audio.arcFanfare?.(); // a big triumphant victory fanfare (no coin blip)
-        g.hud.showBanner("✦ ARC RECOVERED", `${this.collected} / ${this.total} ARCS COLLECTED`); // center XIII-style
-        g.hud.setCounter("Arcs", `${this.collected} / ${this.total}`);
+        g.hud.showBanner(`${this.icon} ${this.nounU} RECOVERED`, `${this.collected} / ${this.total} ${this.nounU}S COLLECTED`); // center XIII-style
+        g.hud.setCounter(this.noun + "s", `${this.collected} / ${this.total}`);
         if (this.beats[this.collected]) g.hud.notify(this.beats[this.collected]);
         if (this.collected >= this.total) {
-          g._win({ cinematic: true, title: 'Timeline <span class="hz">Restored</span>', sub: `All ${this.total} Arcs recovered — time mends and you return to your own` });
+          g._win({ cinematic: true, title: 'Timeline <span class="hz">Restored</span>', sub: `All ${this.total} ${this.noun}s recovered — time mends and you return to your own` });
           return;
         }
       }

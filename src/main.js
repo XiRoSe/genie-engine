@@ -251,10 +251,11 @@ class Game {
   _beginIntro() {
     if (this.state === "intro" || this._introDone) return;
     this._menuLightsOff(); // drop the deploy-screen fill once we commit to the mission
-    if (this.playerModel && this.playerModel.setDancing) this.playerModel.setDancing(false); // stop the Salsa, time to fight
+    if (this.playerModel && this.playerModel.setDancing) this.playerModel.setDancing(false); // stop the dance, time to fight
+    this.audio.stopSalsaMusic?.(); // stop the deploy-screen flamenco/salsa (both the cinematic and no-cinematic paths)
     trackStart(this.levelDef.id || this.levelDef.name, this.levelDef.name); // count a play for THIS game (the moment they commit)
     if (!this.cfg.intro.enabled) { // NO cinematic — drop straight into the fight with a dramatic Pacific Rim swell
-      this._introDone = true; this.audio.stopSalsaMusic?.();
+      this._introDone = true;
       if (this._thirdPerson) {
         const sp = this.level.playerSpawn;
         this.controller.pos.set(sp.x, 0, sp.z); this.controller.feetY = this.level.terrainHeight ? this.level.terrainHeight(sp.x, sp.z) : 0;

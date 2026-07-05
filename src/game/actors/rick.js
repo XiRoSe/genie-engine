@@ -26,7 +26,7 @@ export function makeRick() {
     walkLo = mk(rWalk, false); walkUp = mk(rWalk, true);
     runLo = mk(rRun, false); runUp = mk(rRun, true);
     gunUp = mk(rGun, true); // upper half of the gun stance (torso+arms); legs come from locomotion
-    const rDance = clipsOf(RICK_DANCE)[0]; if (rDance) { dance = mixer.clipAction(rDance); dance.setEffectiveTimeScale(0.7); } // full-body Salsa for the deploy screen (a touch slower)
+    const rDance = clipsOf(RICK_DANCE)[0]; if (rDance) { dance = mixer.clipAction(rDance); dance.setEffectiveTimeScale(1.05); } // full-body Salsa for the deploy screen (~1.5x livelier)
     const rJump = clipsOf(RICK_JUMP)[0]; if (rJump) jump = mixer.clipAction(rJump); // full-body jump pose (played while airborne)
     hand = inst.bones.rightHand; handL = inst.bones.leftHand; footR = inst.bones.rightFoot; footL = inst.bones.leftFoot; uaR = inst.bones.rUpper; uaL = inst.bones.lUpper;
     for (const a of [idleLo, idleUp, walkLo, walkUp, runLo, runUp, gunUp, dance, jump]) if (a) { a.play(); a.setEffectiveWeight(0); }
