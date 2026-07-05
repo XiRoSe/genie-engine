@@ -523,32 +523,38 @@ class Game {
     for (const e of this.combat.enemies) if (!e.dead) { e.hitbox.updateWorldMatrix(true, false); targets.push(e.hitbox); }
     const hits = this._ray.intersectObjects(targets, true);
     if (!hits.length) return null;
+    // world-space surface normal of an intersection (for surface-aligned impact blobs)
+    const wn = (h) => { if (!h || !h.face) return null; this._nm = this._nm || new THREE.Matrix3(); return h.face.normal.clone().applyNormalMatrix(this._nm.getNormalMatrix(h.object.matrixWorld)).normalize(); };
     // GRACE: an enemy counts as hit if it's no more than this far behind the nearest wall/ground — so shots
     // aimed at an enemy (esp. big mechs at range over undulating terrain) register even though a low rise is technically nearer.
     const GRACE = 9;
-    let wallDist = Infinity; const out = [];
+    let wallDist = Infinity, wallHit = null; const out = [];
     for (const h of hits) {
       let o = h.object; while (o && !(o.userData && o.userData.enemy)) o = o.parent;
       if (o && o.userData.enemy) {
         if (h.distance > wallDist + GRACE) break; // genuinely behind solid cover
-        out.push({ point: h.point, enemy: o.userData.enemy, dist: h.distance });
+        out.push({ point: h.point, enemy: o.userData.enemy, dist: h.distance, normal: wn(h) });
         if (!pierce) break;
       } else if (wallDist === Infinity) {
-        wallDist = h.distance; // nearest solid surface (terrain/structure)
+        wallDist = h.distance; wallHit = h; // nearest solid surface (terrain/structure)
       }
     }
-    if (!out.length) return wallDist < Infinity ? { point: hits[0].point, dist: wallDist } : null;
+    if (!out.length) return wallHit ? { point: wallHit.point, dist: wallDist, normal: wn(wallHit) } : null;
     return pierce ? { list: out, point: out[out.length - 1].point } : out[0];
   }
 
-  // march a ray against the terrain heightfield → the point where the shot meets the GROUND (or null if it never does)
+  // march a ray against the terrain heightfield → { point, normal } where the shot meets the GROUND (or null)
   _terrainHit(start, dir, maxDist = 200) {
     const th = this.level.terrainHeight; if (!th) return null;
     const p = (this._thp || (this._thp = new THREE.Vector3())).copy(start); const step = 1.0;
     for (let d = 0; d < maxDist; d += step) {
       p.addScaledVector(dir, step);
       const gy = th(p.x, p.z);
-      if (p.y <= gy) { p.y = gy + 0.05; return p.clone(); }
+      if (p.y <= gy) {
+        const e = 0.7; // surface normal from the heightfield gradient (so the impact blob follows slopes)
+        const normal = new THREE.Vector3(th(p.x - e, p.z) - th(p.x + e, p.z), 2 * e, th(p.x, p.z - e) - th(p.x, p.z + e)).normalize();
+        return { point: new THREE.Vector3(p.x, gy + 0.05, p.z), normal };
+      }
     }
     return null;
   }
@@ -572,7 +578,8 @@ class Game {
     const r = this._rayShot(dir, 220);
     const end = r ? r.point.clone() : start.clone().addScaledVector(dir, 220);
     this.vfx.laserBeam(start, end);
-    if (r && r.enemy) { r.enemy.takeDamage(this._falloff(b.damage, r.dist)); this.vfx.hitPuff(end); }
+    if (r) this.vfx.impact(end, r.normal, 0x46ff5a); // surface-aligned green energy blob (enemy or wall)
+    if (r && r.enemy) r.enemy.takeDamage(this._falloff(b.damage, r.dist));
     this._fovKick = Math.min(this._fovKick + 0.5, 3);
   }
 
@@ -588,16 +595,17 @@ class Game {
       dir.copy(fwd);
       if (g.spread) dir.add(new THREE.Vector3((Math.random() - 0.5) * g.spread, (Math.random() - 0.5) * g.spread, (Math.random() - 0.5) * g.spread)).normalize();
       let end = start.clone().addScaledVector(dir, 140);
+      const ecol = g.ecolor || g.beam || 0x66ff44; // the shot's colour for surface-aligned impact blobs
       if (g.pierce) {
         const r = this._rayShot(dir, 200, true);
-        if (r && r.list) { for (const hit of r.list) { hit.enemy.takeDamage(this._falloff(g.dmg, hit.dist)); this.vfx.hitPuff(hit.point); this.combat.hooks.onHitmarker?.(hit.enemy.dead); } if (r.point) end = r.point.clone(); }
+        if (r && r.list) { for (const hit of r.list) { hit.enemy.takeDamage(this._falloff(g.dmg, hit.dist)); this.vfx.impact(hit.point, hit.normal, ecol); this.combat.hooks.onHitmarker?.(hit.enemy.dead); } if (r.point) end = r.point.clone(); }
       } else {
         const r = this._rayShot(dir, 200);
-        if (r && r.enemy) { end = r.point.clone(); r.enemy.takeDamage(this._falloff(g.dmg, r.dist)); this.vfx.hitPuff(end); this.combat.hooks.onHitmarker?.(r.enemy.dead); } // enemy hit (marker + sound)
-        else { // no enemy — if the shot hits the GROUND, drop a force-field burst in the laser's colour
-          const gp = this._terrainHit(start, dir, 200), wallD = r ? r.dist : Infinity;
-          if (gp && start.distanceTo(gp) < wallD) { end = gp.clone(); if (this._thirdPerson) { this.vfx.groundHit?.(gp, g.ecolor || g.beam || 0x44ff44); this._laserGroundBlast(gp, g.dmg); } else this.vfx.hitPuff(gp); }
-          else if (r) end = r.point.clone();
+        if (r && r.enemy) { end = r.point.clone(); r.enemy.takeDamage(this._falloff(g.dmg, r.dist)); this.vfx.impact(end, r.normal, ecol); this.combat.hooks.onHitmarker?.(r.enemy.dead); } // enemy hit — surface-aligned blob
+        else { // no enemy — hits the GROUND (force-field burst) or a WALL/prop (surface-aligned blob)
+          const gh = this._terrainHit(start, dir, 200), wallD = r ? r.dist : Infinity;
+          if (gh && start.distanceTo(gh.point) < wallD) { end = gh.point.clone(); if (this._thirdPerson) { this.vfx.groundHit?.(gh.point, ecol); this._laserGroundBlast(gh.point, g.dmg); this.vfx.impact(gh.point, gh.normal, ecol); } else this.vfx.impact(gh.point, gh.normal, ecol); }
+          else if (r) { end = r.point.clone(); this.vfx.impact(r.point, r.normal, ecol); } // wall / prop / structure — blob follows the surface
         }
       }
       if (g.pierce) { this.vfx.enemyLaser ? this.vfx.enemyLaser(start, end, g.beam) : this.vfx.tracer(start, end); this.vfx._flash && this.vfx._flash(end, 1.4, g.beam); this.vfx._flash && this.vfx._flash(start, 1.0, g.beam); } // railgun: a bold blue beam + flashes

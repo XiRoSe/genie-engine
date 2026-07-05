@@ -34,6 +34,9 @@ export class VFX {
     this.dust = this._pool(36, quad, () => noOutline(new THREE.MeshBasicMaterial({ map: this._smoke, transparent: true, depthWrite: false })));
     // lingering decals
     this.decals = this._pool(40, quad, () => noOutline(new THREE.MeshBasicMaterial({ map: this._hole, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })));
+    // surface-aligned impact SPLATS: a soft colored glow disc that lies FLAT against whatever it hit (wall, ground,
+    // prop, enemy), oriented to the surface normal. Normal-blended so the colour reads true on any background.
+    this.splats = this._pool(24, quad, () => noOutline(new THREE.MeshBasicMaterial({ map: this._glow, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 })));
     // thin additive tracers
     const tg = new THREE.CylinderGeometry(0.01, 0.01, 1, 4); tg.translate(0, 0.5, 0);
     this.tracers = this._pool(20, tg, () => noOutline(new THREE.MeshBasicMaterial({ color: 0xfff0bf, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })));
@@ -146,12 +149,23 @@ export class VFX {
     d.life = d.max = 7; d.grow = 0;
   }
 
-  // wall / prop impact
-  impact(point, normal) {
-    this._flash(point, 0.6, 0xffe2a0);
-    this._embers(point, 0xffc878, 7, 5);
-    this._dustPuff(point, 0xb9b3a4, 0.35);
-    if (normal) this._decal(point, normal);
+  // Surface-aware impact — the "blob" orients to the surface it hits (normal-aligned), in the given colour.
+  // Works for ANY surface: walls, ground, props, vehicles, enemies. color defaults to the warm kinetic-round hue.
+  impact(point, normal, color = 0xffe2a0, scale = 1) {
+    const energy = color !== 0xffe2a0;
+    this._flash(point, 0.6 * scale, color);
+    this._embers(point, energy ? color : 0xffc878, energy ? 9 : 7, 6 * scale);
+    this._dustPuff(point, 0xb9b3a4, 0.32 * scale);
+    if (normal) {
+      // the surface-aligned glowing blob (lies flat on the hit surface, facing back along the normal)
+      const s = this._next(this.splats);
+      s.mesh.position.copy(point).addScaledVector(normal, 0.04);
+      s.mesh.lookAt(this._dir.copy(point).add(normal));
+      s.mesh.material.color.setHex(color);
+      s.mesh.scale.setScalar((0.8 + Math.random() * 0.35) * scale);
+      s.mesh.visible = true; s.mesh.material.opacity = 0.95; s.life = s.max = 0.32;
+      if (!energy) this._decal(point, normal); // a dark scorch/bullet-hole only for kinetic rounds
+    }
   }
   // simple soft glowing muzzle flash, billboarded toward the camera
   muzzle(point) {
@@ -312,6 +326,12 @@ export class VFX {
       d.life -= dt;
       if (d.life < 1) d.mesh.material.opacity = Math.max(0, d.life * 0.9);
       if (d.life <= 0) d.mesh.visible = false;
+    }
+    for (const s of this.splats) if (s.life > 0) { // surface-aligned impact blob: bloom out + fade
+      s.life -= dt; const k = 1 - s.life / s.max;
+      s.mesh.scale.multiplyScalar(1 + dt * 3.5);
+      s.mesh.material.opacity = Math.max(0, 0.95 * (1 - k) * (1 - k));
+      if (s.life <= 0) s.mesh.visible = false;
     }
     for (const r of this.rings) if (r.life > 0) {
       r.life -= dt; const k = 1 - r.life / r.max;

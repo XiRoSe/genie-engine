@@ -73,24 +73,26 @@ export class Combat {
         obj = obj.parent;
       }
       if (this.weapon._energyBeam) this.vfx.laserBeam(muzzle, h.point); else this.vfx.tracer(muzzle, h.point); // energy bolt in 3rd-person sci-fi mode
+      // REAL surface normal (world space) so the impact blob orients to whatever it hit; fall back to facing the shooter
+      const nrm = h.face ? h.face.normal.clone().applyNormalMatrix((this._nm || (this._nm = new THREE.Matrix3())).getNormalMatrix(h.object.matrixWorld)).normalize() : this._far.copy(this._dir).multiplyScalar(-1);
+      const icol = this.weapon._energyBeam ? (this.weapon.ecolor || 0x66ff44) : 0xffe2a0; // energy colour vs kinetic
       if (enemy && !enemy.dead) {
         const fall = Math.max(0.4, 1 - Math.max(0, h.distance - 28) / 150); // less hit power at range
         enemy.takeDamage(this.weapon.damage * fall);
-        this.vfx.hitPuff(h.point);
+        this.vfx.impact(h.point, nrm, icol);
         this.hooks.onHitmarker?.(enemy.dead);
       } else if (heli && !heli.dead) {
         heli.takeDamage(1); // 1 unit per rifle shot -> 15-unit gunship = 15 shots
-        this.vfx.hitPuff(h.point);
+        this.vfx.impact(h.point, nrm, icol);
         this.hooks.onHitmarker?.(heli.dead);
       } else if (explosive && !explosive.exploded) {
-        this.vfx.impact(h.point, this._far.copy(this._dir).multiplyScalar(-1)); // sparks on the hull
+        this.vfx.impact(h.point, nrm, icol); // sparks on the hull
         this.hooks.onExplosive?.(explosive, 1); // 1 unit per shot — main blows it up at 0 HP
       } else if (vehicle && !vehicle.exploded) {
-        this.vfx.impact(h.point, this._far.copy(this._dir).multiplyScalar(-1)); // sparks on the hull
+        this.vfx.impact(h.point, nrm, icol); // sparks on the hull
         this.hooks.onVehicleHit?.(vehicle, 1); // 1 unit per shot; main blows it up at 0
       } else {
-        this._far.copy(this._dir).multiplyScalar(-1); // approx surface normal = back toward shooter
-        this.vfx.impact(h.point, this._far);
+        this.vfx.impact(h.point, nrm, icol); // wall / structure — surface-aligned blob
       }
     } else {
       this._far.copy(this._origin).addScaledVector(this._dir, 120);
