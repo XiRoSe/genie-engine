@@ -569,6 +569,19 @@ class Game {
   // damage falloff: full up close, tapering to ~40% at long range
   _falloff(dmg, dist) { return dmg * Math.max(0.4, 1 - Math.max(0, dist - 28) / 150); }
 
+  // Drive the CONTINUOUS energy beam for this frame (hand-lasers + energy blasters): muzzle → current aim point,
+  // in the weapon's own colour. Called every frame fire is held so the beam stays constant instead of flickering.
+  _sustainEnergyBeam() {
+    const w = this.weapon;
+    const from = w.muzzleWorld.clone();                 // hand (handlaser) or gun muzzle, in world space
+    const dir = this._sbDir || (this._sbDir = new THREE.Vector3()); this.camera.getWorldDirection(dir);
+    const r = this._rayShot(dir, 220);
+    const to = r ? r.point.clone() : from.clone().addScaledVector(dir, 220);
+    const g = w.guns[w.mode];
+    const color = w.mode === "laser" ? 0x46ff5a : (g && (g.beam || g.ecolor)) || w.ecolor || 0x66ff44;
+    this.vfx.sustainBeam(from, to, color, 1);
+  }
+
   _fireLaser(t) {
     this.weapon.fireLaser(t);
     this.hud.bloom();
@@ -921,6 +934,12 @@ class Game {
       // fire — mouse or touch FIRE button (per weapon mode)
       const firing = this.input.mouseDown || this.input.touch.fire;
       const mode = this.weapon.mode;
+      // CONTINUOUS energy beam: hand-lasers + energy blasters draw one persistent beam re-aimed every frame while
+      // fire is held, so the beam is constant/fluent instead of flickering per shot. Damage still ticks at the
+      // weapon's rate below. `_sustaining` tells vfx.laserBeam to skip its transient beam so the two don't stack.
+      const hitscanEnergy = mode === "laser" || (this.weapon._energyBeam && mode !== "launcher" && mode !== "plasma" && mode !== "sword" && mode !== "shotgun");
+      this.vfx._sustaining = false;
+      if (firing && hitscanEnergy && !this.weapon.reloading) { this._sustainEnergyBeam(); this.vfx._sustaining = true; }
       if (mode === "launcher") { if (firing && this.weapon.canFireRocket(t)) this._fireRocket(t); }
       else if (mode === "plasma") { if (firing && this.weapon.canFirePlasma(t)) this._firePlasma(t); }
       else if (mode === "laser") { if (firing && this.weapon.canFireLaser(t)) this._fireLaser(t); }
@@ -928,6 +947,7 @@ class Game {
       else if (mode === "shotgun") { if (firing && this.weapon.canFireShotgun(t)) this._fireShotgun(t); }
       else if (mode === "sword") { if (firing && this.weapon.canFireSword(t)) this._swingSword(t); }
       else if (firing && this.weapon.canFire(t)) { this.shotsFired++; this.combat.tryShoot(t); this.hud.bloom(); this._fovKick = Math.min(this._fovKick + 0.8, 3.5); }
+      this.vfx._sustaining = false; // done with the player's shot — enemy beams (combat.update) must draw normally
       // recoil FOV punch recovery
       this._fovKick *= Math.pow(0.0009, dt);
       const fov = this.baseFov + this._fovKick;

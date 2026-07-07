@@ -259,18 +259,47 @@ export class VFX {
     this._dir.subVectors(b, a); const len = this._dir.length(); if (len < 0.1) return;
     const bad = this._badass; // Rick level: fatter, brighter bolt with double muzzle+impact flashes
     const th = (bad ? 1.7 : 0.55) * sizeScale; // beam radius
-    const beam = this._next(this.enemyBeams);
-    beam.mesh.position.copy(a); beam.mesh.quaternion.setFromUnitVectors(this._up, this._dir.normalize()); beam.mesh.scale.set(th, len, th);
-    beam.mesh.material.color.setHex(color); beam.mesh.visible = true; beam.mesh.material.opacity = bad ? 0.98 : 0.85; beam.life = beam.max = bad ? 0.12 : 0.1;
-    // SOLID inner core (normal blend) in the beam's TRUE colour — additive alone reads yellow over the orange world
-    const core = this._next(this.beamCores);
-    core.mesh.position.copy(a); core.mesh.quaternion.copy(beam.mesh.quaternion); core.mesh.scale.set(th * 0.6, len, th * 0.6);
-    core.mesh.material.color.setHex(color); core.mesh.visible = true; core.mesh.material.opacity = 0.95; core.life = core.max = beam.max;
+    // when a SUSTAINED beam is drawing this frame (the player is holding fire), skip the transient cylinder so the
+    // two don't stack — the sustained beam carries the line; we still emit the per-shot muzzle/impact flashes below.
+    if (!this._sustaining) {
+      const beam = this._next(this.enemyBeams);
+      beam.mesh.position.copy(a); beam.mesh.quaternion.setFromUnitVectors(this._up, this._dir.normalize()); beam.mesh.scale.set(th, len, th);
+      beam.mesh.material.color.setHex(color); beam.mesh.visible = true; beam.mesh.material.opacity = bad ? 0.98 : 0.85; beam.life = beam.max = bad ? 0.12 : 0.1;
+      // SOLID inner core (normal blend) in the beam's TRUE colour — additive alone reads yellow over the orange world
+      const core = this._next(this.beamCores);
+      core.mesh.position.copy(a); core.mesh.quaternion.copy(beam.mesh.quaternion); core.mesh.scale.set(th * 0.6, len, th * 0.6);
+      core.mesh.material.color.setHex(color); core.mesh.visible = true; core.mesh.material.opacity = 0.95; core.life = core.max = beam.max;
+    }
     const s = sizeScale;
     // muzzle/impact flashes tinted toward the BEAM colour (a hot bright version), not pure white → the bolt reads in its true colour (green stays green)
     const hot = (this._c1 || (this._c1 = new THREE.Color())).setHex(color).lerp((this._cW || (this._cW = new THREE.Color(0xffffff))), 0.6).getHex();
     if (bad) { this._flash(a, 0.9 * s, hot); this._flash(a, 1.5 * s, color); this._flash(b, 1.3 * s, hot); this._flash(b, 2.2 * s, color); }
     else { this._flash(a, 0.4 * s, hot); this._flash(b, 0.75 * s, color); }
+  }
+
+  // A CONTINUOUS player energy beam: call it EVERY frame while firing and the line NEVER flickers between shots
+  // (unlike the transient per-shot laserBeam). It's a persistent glow cylinder + solid true-colour core that we
+  // just re-aim each frame; it auto-fades ~80ms after you stop calling it, so releasing fire feels smooth.
+  sustainBeam(a, b, color = 0x44ff44, sizeScale = 1) {
+    if (!this._sbeam) {
+      const g = new THREE.CylinderGeometry(1, 1, 1, 10); g.translate(0, 0.5, 0);
+      this._sbeam = new THREE.Mesh(g, noOutline(new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }))); // additive outer glow
+      this._sbeamCore = new THREE.Mesh(g, noOutline(new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false }))); // solid core → true colour on any background
+      this._sbeam.frustumCulled = this._sbeamCore.frustumCulled = false;
+      this.scene.add(this._sbeam, this._sbeamCore);
+      this._sq = new THREE.Quaternion();
+    }
+    this._dir.subVectors(b, a); const len = this._dir.length(); if (len < 0.1) return;
+    const th = (this._badass ? 1.35 : 0.5) * sizeScale;
+    const j = 0.88 + (this._sbShim = (this._sbShim || 0) + 0.7) % 1 * 0.14; // gentle deterministic thickness shimmer (never blinks out)
+    this._sq.setFromUnitVectors(this._up, this._dir.normalize());
+    this._sbeam.position.copy(a); this._sbeam.quaternion.copy(this._sq); this._sbeam.scale.set(th * j, len, th * j);
+    this._sbeamCore.position.copy(a); this._sbeamCore.quaternion.copy(this._sq); this._sbeamCore.scale.set(th * 0.5, len, th * 0.5);
+    this._sbeam.material.color.setHex(color); this._sbeamCore.material.color.setHex(color);
+    this._sbeam.visible = this._sbeamCore.visible = true;
+    this._sbeam.material.opacity = 0.9; this._sbeamCore.material.opacity = 1;
+    this._sbeamHold = 0.08; // refresh window — if not re-called within this, the beam fades out (see update)
+    this._flash(a, (this._badass ? 0.7 : 0.4) * sizeScale, color); // steady muzzle glow at the source
   }
 
   // sci-fi plasma detonation: a blue/cyan energy fireball + shockwave + sparks
@@ -298,6 +327,8 @@ export class VFX {
   update(dt) {
     const camQ = this._cam && this._cam.quaternion;
     if (this._beam && this._beam.visible) { this._beamLife -= dt; const f = Math.max(0, this._beamLife / 0.85); this._beam.material.opacity = 0.9 * f; this._beamCore.material.opacity = f; if (this._beamLife <= 0) this._beam.visible = false; }
+    // sustained player beam: full opacity while being refreshed (firing); short smooth fade once fire is released
+    if (this._sbeam && this._sbeam.visible) { this._sbeamHold -= dt; if (this._sbeamHold <= 0) { this._sbeam.visible = this._sbeamCore.visible = false; } else { const f = Math.min(1, this._sbeamHold / 0.08); this._sbeam.material.opacity = 0.9 * f; this._sbeamCore.material.opacity = f; } }
     for (const t of this.tracers) if (t.life > 0) { t.life -= dt; t.mesh.material.opacity = Math.max(0, t.life / t.max); if (t.life <= 0) t.mesh.visible = false; }
     for (const t of this.enemyBeams) if (t.life > 0) { t.life -= dt; t.mesh.material.opacity = Math.max(0, 0.95 * t.life / t.max); if (t.life <= 0) t.mesh.visible = false; }
     for (const t of this.beamCores) if (t.life > 0) { t.life -= dt; t.mesh.material.opacity = Math.max(0, 0.95 * t.life / t.max); if (t.life <= 0) t.mesh.visible = false; }
