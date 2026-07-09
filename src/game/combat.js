@@ -72,10 +72,11 @@ export class Combat {
         if (obj.userData && obj.userData.vehicle) { vehicle = obj.userData.vehicle; break; }
         obj = obj.parent;
       }
-      if (this.weapon._energyBeam) this.vfx.laserBeam(muzzle, h.point); else this.vfx.tracer(muzzle, h.point); // energy bolt in 3rd-person sci-fi mode
+      const icol = this.weapon._energyBeam ? (this.weapon.ecolor || 0x66ff44) : 0xffe2a0; // energy colour vs kinetic
+      if (this.weapon._energyBeam) this.vfx.laserBeam(muzzle, h.point, icol); else this.vfx.tracer(muzzle, h.point); // energy bolt in the weapon's own colour
       // REAL surface normal (world space) so the impact blob orients to whatever it hit; fall back to facing the shooter
       const nrm = h.face ? h.face.normal.clone().applyNormalMatrix((this._nm || (this._nm = new THREE.Matrix3())).getNormalMatrix(h.object.matrixWorld)).normalize() : this._far.copy(this._dir).multiplyScalar(-1);
-      const icol = this.weapon._energyBeam ? (this.weapon.ecolor || 0x66ff44) : 0xffe2a0; // energy colour vs kinetic
+      if (this.weapon._energyBeam) this.vfx.groundHit?.(h.point, icol); // force-field bubble on ANY surface (parity with the ground blob)
       if (enemy && !enemy.dead) {
         const fall = Math.max(0.4, 1 - Math.max(0, h.distance - 28) / 150); // less hit power at range
         enemy.takeDamage(this.weapon.damage * fall);

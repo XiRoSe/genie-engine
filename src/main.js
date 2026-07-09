@@ -158,7 +158,7 @@ class Game {
     this.levelDef.build(this.level);
     const sp = this.level.playerSpawn;
     // 3rd-person mode (e.g. the Rick & Morty level): a visible player avatar the camera orbits behind
-    if (this.cfg.view === "third") { this.playerModel = makeRick(); this.scene.add(this.playerModel.group); this._thirdPerson = true; this.controller.view = "third"; this.weapon._hideViewmodel = true; this.weapon._muzzleOverride = () => this.playerModel && this.playerModel.getMuzzle(); this.weapon._showViewmodel(); this.weapon._energyBeam = true; /* sci-fi blasters fire energy/laser bolts */ this.vfx._badass = true; /* punchy energy VFX — Rick level only; military levels keep their normal impacts */ this.weapon.damage *= 2; for (const k in this.weapon.guns) this.weapon.guns[k].dmg *= 2; ["plasma", "rocket", "laser"].forEach((k) => { if (this.cfg.balance && this.cfg.balance[k]) this.cfg.balance[k].damage *= 2; }); /* Rick's sci-fi weapons hit 2x */ this.controller.thirdDist /= 1.5; /* 1.5x closer to Rick's back */ this.controller.walkSpeed *= 0.5; this.controller.sprintSpeed *= 0.85; /* slower ground speed so footfalls match Rick's walk/run animation cadence (no foot-sliding) */ this.controller.jumpStrength *= 1.7; /* Rick jumps noticeably higher */ this.playerModel.group.visible = false; /* shown on the deploy screen + in play, hidden during the drop */ }
+    if (this.cfg.view === "third") { this.playerModel = makeRick(); this.scene.add(this.playerModel.group); this._thirdPerson = true; this.controller.view = "third"; this.weapon._hideViewmodel = true; this.weapon._muzzleOverride = () => this.playerModel && this.playerModel.getMuzzle(); this.weapon._showViewmodel(); this.weapon._energyBeam = true; this.weapon.ecolor = 0x33e6ff; this.weapon.beamW = 1.0; /* PHOTON CARBINE — cyan energy bolts (primary rifle fires via combat.tryShoot) */ this.vfx._badass = true; /* punchy energy VFX — Rick level only; military levels keep their normal impacts */ this.weapon.damage *= 2; for (const k in this.weapon.guns) this.weapon.guns[k].dmg *= 2; ["plasma", "rocket", "laser"].forEach((k) => { if (this.cfg.balance && this.cfg.balance[k]) this.cfg.balance[k].damage *= 2; }); /* Rick's sci-fi weapons hit 2x */ this.controller.thirdDist /= 1.5; /* 1.5x closer to Rick's back */ this.controller.walkSpeed *= 0.5; this.controller.sprintSpeed *= 0.85; /* slower ground speed so footfalls match Rick's walk/run animation cadence (no foot-sliding) */ this.controller.jumpStrength *= 1.7; /* Rick jumps noticeably higher */ this.playerModel.group.visible = false; /* shown on the deploy screen + in play, hidden during the drop */ }
     this.hero = "heavy";
     this._heroLobby = HERO_LOADOUT[this.hero] != null && this.cfg.intro && (this.cfg.intro.style === "parachute" || this.cfg.intro.style === "droppod") && this.cfg.view !== "third"; // 3rd-person levels (Rick) skip hero-select — you're always Rick
     if (this._heroLobby) this._setupLobby(); // hero-select lobby on the start screen
@@ -572,14 +572,23 @@ class Game {
   // Drive the CONTINUOUS energy beam for this frame (hand-lasers + energy blasters): muzzle → current aim point,
   // in the weapon's own colour. Called every frame fire is held so the beam stays constant instead of flickering.
   _sustainEnergyBeam() {
-    const w = this.weapon;
+    const w = this.weapon, g = w.guns[w.mode];
     const from = w.muzzleWorld.clone();                 // hand (handlaser) or gun muzzle, in world space
     const dir = this._sbDir || (this._sbDir = new THREE.Vector3()); this.camera.getWorldDirection(dir);
+    // the ENERGY colour (ecolor), NOT the kinetic `beam` colour — per-weapon so each blaster reads distinctly
+    const color = w.mode === "laser" ? 0x46ff5a : (g && g.ecolor) || w.ecolor || 0x66ff44;
+    const bw = (g && g.beamW) || w.beamW || 1;          // per-weapon beam width
+    // resolve where the beam actually lands: the nearer of a solid hit (enemy/wall/prop) or the terrain
     const r = this._rayShot(dir, 220);
-    const to = r ? r.point.clone() : from.clone().addScaledVector(dir, 220);
-    const g = w.guns[w.mode];
-    const color = w.mode === "laser" ? 0x46ff5a : (g && (g.beam || g.ecolor)) || w.ecolor || 0x66ff44;
-    this.vfx.sustainBeam(from, to, color, 1);
+    const gh = this._terrainHit(this.camera.position, dir, 220);
+    const wallD = r ? r.dist : Infinity;
+    let point = null, normal = null;
+    if (gh && this.camera.position.distanceTo(gh.point) < wallD) { point = gh.point; normal = gh.normal; }
+    else if (r) { point = r.point; normal = r.normal; }
+    const to = point ? point.clone() : from.clone().addScaledVector(dir, 220);
+    this.vfx.sustainBeam(from, to, color, bw);
+    // constant surface-aligned impact blob wherever the beam lands — object, wall OR ground, oriented to the surface
+    if (point) this.vfx.sustainImpact(point, normal, color, 0.8 + 0.5 * bw, g && g.efx === "bubble");
   }
 
   _fireLaser(t) {
@@ -614,11 +623,11 @@ class Game {
         if (r && r.list) { for (const hit of r.list) { hit.enemy.takeDamage(this._falloff(g.dmg, hit.dist)); this.vfx.impact(hit.point, hit.normal, ecol); this.combat.hooks.onHitmarker?.(hit.enemy.dead); } if (r.point) end = r.point.clone(); }
       } else {
         const r = this._rayShot(dir, 200);
-        if (r && r.enemy) { end = r.point.clone(); r.enemy.takeDamage(this._falloff(g.dmg, r.dist)); this.vfx.impact(end, r.normal, ecol); this.combat.hooks.onHitmarker?.(r.enemy.dead); } // enemy hit — surface-aligned blob
+        if (r && r.enemy) { end = r.point.clone(); r.enemy.takeDamage(this._falloff(g.dmg, r.dist)); this.vfx.impact(end, r.normal, ecol); if (this._thirdPerson) this.vfx.groundHit?.(end, ecol); this.combat.hooks.onHitmarker?.(r.enemy.dead); } // enemy hit — surface-aligned blob + energy bubble
         else { // no enemy — hits the GROUND (force-field burst) or a WALL/prop (surface-aligned blob)
           const gh = this._terrainHit(start, dir, 200), wallD = r ? r.dist : Infinity;
           if (gh && start.distanceTo(gh.point) < wallD) { end = gh.point.clone(); if (this._thirdPerson) { this.vfx.groundHit?.(gh.point, ecol); this._laserGroundBlast(gh.point, g.dmg); this.vfx.impact(gh.point, gh.normal, ecol); } else this.vfx.impact(gh.point, gh.normal, ecol); }
-          else if (r) { end = r.point.clone(); this.vfx.impact(r.point, r.normal, ecol); } // wall / prop / structure — blob follows the surface
+          else if (r) { end = r.point.clone(); this.vfx.impact(r.point, r.normal, ecol); if (this._thirdPerson) this.vfx.groundHit?.(r.point, ecol); } // wall / prop / structure — blob + bubble follow the surface
         }
       }
       if (g.pierce) { this.vfx.enemyLaser ? this.vfx.enemyLaser(start, end, g.beam) : this.vfx.tracer(start, end); this.vfx._flash && this.vfx._flash(end, 1.4, g.beam); this.vfx._flash && this.vfx._flash(start, 1.0, g.beam); } // railgun: a bold blue beam + flashes

@@ -290,16 +290,42 @@ export class VFX {
       this._sq = new THREE.Quaternion();
     }
     this._dir.subVectors(b, a); const len = this._dir.length(); if (len < 0.1) return;
-    const th = (this._badass ? 1.35 : 0.5) * sizeScale;
-    const j = 0.88 + (this._sbShim = (this._sbShim || 0) + 0.7) % 1 * 0.14; // gentle deterministic thickness shimmer (never blinks out)
+    const th = (this._badass ? 0.6 : 0.32) * sizeScale; // slimmer than the old transient bolt — a taut energy line, not a slab
+    const j = 0.9 + (this._sbShim = (this._sbShim || 0) + 0.7) % 1 * 0.12; // gentle deterministic thickness shimmer (never blinks out)
     this._sq.setFromUnitVectors(this._up, this._dir.normalize());
     this._sbeam.position.copy(a); this._sbeam.quaternion.copy(this._sq); this._sbeam.scale.set(th * j, len, th * j);
-    this._sbeamCore.position.copy(a); this._sbeamCore.quaternion.copy(this._sq); this._sbeamCore.scale.set(th * 0.5, len, th * 0.5);
+    this._sbeamCore.position.copy(a); this._sbeamCore.quaternion.copy(this._sq); this._sbeamCore.scale.set(th * 0.42, len, th * 0.42);
     this._sbeam.material.color.setHex(color); this._sbeamCore.material.color.setHex(color);
     this._sbeam.visible = this._sbeamCore.visible = true;
-    this._sbeam.material.opacity = 0.9; this._sbeamCore.material.opacity = 1;
+    this._sbeam.material.opacity = 0.85; this._sbeamCore.material.opacity = 1;
     this._sbeamHold = 0.08; // refresh window — if not re-called within this, the beam fades out (see update)
-    this._flash(a, (this._badass ? 0.7 : 0.4) * sizeScale, color); // steady muzzle glow at the source
+    this._flash(a, (this._badass ? 0.5 : 0.32) * sizeScale, color); // steady muzzle glow at the source
+  }
+
+  // CONTINUOUS surface-aligned impact blob at the far end of a sustained beam. A glowing disc laid FLAT on whatever
+  // the beam hits (oriented to the surface `normal`, exactly like the ground splat), refreshed every frame so it
+  // reads constant instead of flickering. `efx: "bubble"` also swells a force-field dome for chunkier weapons.
+  sustainImpact(point, normal, color = 0x44ff44, scale = 1, bubble = false) {
+    if (!this._simp) {
+      const q = new THREE.PlaneGeometry(1, 1);
+      const mk = (blend) => noOutline(new THREE.MeshBasicMaterial({ map: this._glow, transparent: true, depthWrite: false, blending: blend, polygonOffset: true, polygonOffsetFactor: -4 }));
+      this._simp = new THREE.Mesh(q, mk(THREE.AdditiveBlending));   // outer glow halo
+      this._simpCore = new THREE.Mesh(q, mk(THREE.NormalBlending)); // solid true-colour centre → colour reads on any surface
+      this._simp.frustumCulled = this._simpCore.frustumCulled = false;
+      this.scene.add(this._simp, this._simpCore);
+      this._simpLook = new THREE.Vector3();
+    }
+    const n = (normal && normal.lengthSq() > 0.01) ? normal : this._up;
+    const pulse = 0.85 + (this._simpSh = (this._simpSh || 0) + 0.8) % 1 * 0.3; // gentle shimmer, never zero
+    for (const m of [this._simp, this._simpCore]) {
+      m.position.copy(point).addScaledVector(n, 0.05);
+      m.lookAt(this._simpLook.copy(m.position).add(n)); // face along the normal → the blob lies flat on the surface
+      m.material.color.setHex(color); m.visible = true;
+    }
+    this._simp.scale.setScalar(1.6 * scale * pulse); this._simp.material.opacity = 0.8;
+    this._simpCore.scale.setScalar(0.75 * scale * pulse); this._simpCore.material.opacity = 0.95;
+    this._simpHold = 0.09;
+    if (bubble && ((this._bubT = (this._bubT || 0) + 1) % 4 === 0)) this.groundHit(point, color); // chunky weapons: periodic force-field dome
   }
 
   // sci-fi plasma detonation: a blue/cyan energy fireball + shockwave + sparks
@@ -328,7 +354,9 @@ export class VFX {
     const camQ = this._cam && this._cam.quaternion;
     if (this._beam && this._beam.visible) { this._beamLife -= dt; const f = Math.max(0, this._beamLife / 0.85); this._beam.material.opacity = 0.9 * f; this._beamCore.material.opacity = f; if (this._beamLife <= 0) this._beam.visible = false; }
     // sustained player beam: full opacity while being refreshed (firing); short smooth fade once fire is released
-    if (this._sbeam && this._sbeam.visible) { this._sbeamHold -= dt; if (this._sbeamHold <= 0) { this._sbeam.visible = this._sbeamCore.visible = false; } else { const f = Math.min(1, this._sbeamHold / 0.08); this._sbeam.material.opacity = 0.9 * f; this._sbeamCore.material.opacity = f; } }
+    if (this._sbeam && this._sbeam.visible) { this._sbeamHold -= dt; if (this._sbeamHold <= 0) { this._sbeam.visible = this._sbeamCore.visible = false; } else { const f = Math.min(1, this._sbeamHold / 0.08); this._sbeam.material.opacity = 0.85 * f; this._sbeamCore.material.opacity = f; } }
+    // sustained impact blob: constant while the beam is landing, short fade once fire stops
+    if (this._simp && this._simp.visible) { this._simpHold -= dt; if (this._simpHold <= 0) { this._simp.visible = this._simpCore.visible = false; } else { const f = Math.min(1, this._simpHold / 0.09); this._simp.material.opacity = 0.8 * f; this._simpCore.material.opacity = 0.95 * f; } }
     for (const t of this.tracers) if (t.life > 0) { t.life -= dt; t.mesh.material.opacity = Math.max(0, t.life / t.max); if (t.life <= 0) t.mesh.visible = false; }
     for (const t of this.enemyBeams) if (t.life > 0) { t.life -= dt; t.mesh.material.opacity = Math.max(0, 0.95 * t.life / t.max); if (t.life <= 0) t.mesh.visible = false; }
     for (const t of this.beamCores) if (t.life > 0) { t.life -= dt; t.mesh.material.opacity = Math.max(0, 0.95 * t.life / t.max); if (t.life <= 0) t.mesh.visible = false; }
