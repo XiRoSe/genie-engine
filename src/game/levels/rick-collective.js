@@ -11,7 +11,7 @@ export const rickCollective = {
     scene: { sky: "night", fog: { color: 0x2a1440, near: 40, far: 260 }, fov: 75 }, // dark base; the arena repaints a purple haze
     exposure: 1.7,                                              // BRIGHT neon-purple temple (override the dim night exposure)
     noStorm: true,                                             // enclosed interior — no lightning (it was also resetting exposure back to dim)
-    intro: { enabled: true, style: "droppod", spottedCalloutAt: 4.5 }, // Rick drops into the temple + his own crawl
+    intro: { enabled: true, style: "crawl", spottedCalloutAt: 4.5 }, // story crawl only — NO falling-stage animation (it's an enclosed temple)
     objective: { type: "slay", noun: "THE COLLECTIVE", startLabel: "DESTROY THE COLLECTIVE", startSub: "shatter the hive-mind's core" },
     helicopter: { spawnDelay: 99999 },                          // no gunship in the temple
     reinforce: "none",                                          // no sky drops — the boss summons its OWN drones

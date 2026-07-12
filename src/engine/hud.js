@@ -412,8 +412,14 @@ export class HUD {
   }
   hideDefuse() { this.root.querySelector("#defuse").classList.add("hidden"); }
 
-  showLoading(bgStyle) {
-    const o = this._overlay(`<div style="position:relative;z-index:2;text-align:center"><div class="sub">Preparing deployment</div><h1 class="mil-title">Loading<span class="hz">…</span></h1>
+  showLoading(bgStyle, subtitle) {
+    // animated "…" dots (cycles . → .. → …) — injected once
+    if (!document.getElementById("loaddots-kf")) {
+      const st = document.createElement("style"); st.id = "loaddots-kf";
+      st.textContent = "@keyframes loaddots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}.loaddots::after{content:'';display:inline-block;width:1.2em;text-align:left;animation:loaddots 1.2s steps(1,end) infinite}";
+      document.head.appendChild(st);
+    }
+    const o = this._overlay(`<div style="position:relative;z-index:2;text-align:center"><div class="sub">${subtitle || "Preparing deployment"}</div><h1 class="mil-title">Loading<span class="hz loaddots"></span></h1>
       <div class="sub" id="loadpct">0%</div></div>`);
     // a themed backdrop behind the text (per-level), with a slow cinematic push-in + a dark vignette so the text reads
     const bg = document.createElement("div");

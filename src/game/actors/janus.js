@@ -28,7 +28,9 @@ export class Janus {
     this._sumCd = 2 + Math.random() * 2;                         // boss: drone-summon cooldown (its only offense)
     this._tmp = new THREE.Vector3(); this._from = new THREE.Vector3(); this._to = new THREE.Vector3();
 
-    this.group = new THREE.Group(); this.group.position.copy(this.pos); scene.add(this.group);
+    this.group = new THREE.Group(); this.group.position.copy(this.pos);
+    if (this.boss) this.group.position.y = this.floatH; // float from the start (so it hovers on the deploy/crawl screens too, before update() runs)
+    scene.add(this.group);
     if (JANUS_MODEL.ready) {
       const m = JANUS_MODEL.make(); m.scale.multiplyScalar(this.sc); this.group.add(m); this._model = m;
       if (this.boss) m.traverse((o) => {                          // crank the boss's purple/pink emission so the core glows menacingly

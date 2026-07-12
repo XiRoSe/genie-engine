@@ -22,6 +22,7 @@ import { Helicopter, preloadHeli } from "./game/actors/helicopter.js";
 import { Intro } from "./game/intro.js";
 import { ParachuteIntro } from "./game/parachute-intro.js";
 import { DropPodIntro } from "./game/drop-pod-intro.js";
+import { CrawlIntro } from "./game/crawl-intro.js";
 import { preloadEnemies } from "./game/actors/enemy.js";
 import { preloadOperator, makeHero } from "./game/actors/operator.js";
 import { preloadCreatures, HERO_LIST, HERO_LOADOUT } from "./game/actors/creature-assets.js";
@@ -145,10 +146,11 @@ class Game {
   }
 
   async _boot() {
-    // the Collective gets a purple mandala-ray loading backdrop (not the island photo)
-    this.hud.showLoading(this.levelDef.id === "the_collective"
+    // the Collective gets a purple mandala-ray loading backdrop (not the island photo) + its own subtitle
+    const collective = this.levelDef.id === "the_collective";
+    this.hud.showLoading(collective
       ? "repeating-conic-gradient(from 0deg at 50% 44%, rgba(255,140,240,0.13) 0deg 4deg, transparent 4deg 15deg), radial-gradient(circle at 50% 44%, #8a3ad0 0%, #4a1f8c 40%, #1c0a3a 78%, #0c0518 100%)"
-      : undefined);
+      : undefined, collective ? "INSIDE THE COLLECTIVE" : undefined);
     this.audio.ensure(); // create the (suspended) audio context now so clips — incl. the heli rotor — preload before Deploy
     // load models progressively (async, off the main thread) with a progress readout
     const jobs = [preloadEnemies(), preloadHeli(), preloadOperator(), preloadVehicles(), preloadPickups(), preloadWeapons(), preloadCreatures(), preloadNature(), preloadFpWeapons(), preloadBuildings(),
@@ -282,7 +284,11 @@ class Game {
     if (style !== "parachute" && style !== "droppod") this.audio.startRotor();
     const sp = this.level.playerSpawn;
     const groundY = this.level.terrainHeight ? this.level.terrainHeight(sp.x, sp.z) : 0;
-    this.intro = style === "droppod"
+    this.intro = style === "crawl"
+      ? new CrawlIntro(this.scene, this.camera, { x: 0, y: 26, z: this.level.playerSpawn ? 112 : 0 }, 22,
+        () => { this.voice.deploy?.(); this.audio.stopLobbyMusic?.(); this.audio.startSpaceMusic?.(); // no falling stage — just the story crawl over the temple, framed on the meditating core
+          this.hud.showCrawl(this.cfg.crawlTitle || "THE COLLECTIVE", this.cfg.introCrawl || [], 21000); })
+      : style === "droppod"
       ? new DropPodIntro(this.scene, this.camera, sp, groundY, this.hero, this.vfx, this.audio,
         () => { this.hud._shake = Math.max(this.hud._shake || 0, 28); this.audio.stopDropWhoosh?.(); }, // impact: shake + cut the falling whoosh
         () => { this.voice.deploy(); this.audio.stopLobbyMusic?.(); this.audio.startBattleMusic?.(); this.hud.showCrawl(
@@ -307,6 +313,7 @@ class Game {
     if (this._introDone) return;
     this._introDone = true;
     if (this.intro) { this.intro.dispose(); this.intro = null; }
+    this.hud.hideCrawl?.(); // clear the story crawl (crawl-only intro has no drop callback to hide it)
     this.audio.stopRotor();
     if (!this.weapon._hideViewmodel) this.weapon.group.visible = true; // 3rd-person keeps the FP viewmodel hidden
     // settle the player at the spawn, facing into the compound
