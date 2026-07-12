@@ -13,6 +13,7 @@ const PORT = process.env.PORT || 8080;
 // The games GENIE ships (id = ?level=, used to link + to label the CRM). Extend this list per new game.
 const GAMES = [
   { id: "meeseeks_mayhem", name: "MEESEEKS MAYHEM", tag: "3rd-person · Rick & Morty", blurb: "You're Rick. Time's broken (again) — recover the 12 white magic rings, fend off a rain of Mr. Meeseeks (regular, huge & kaiju-sized giants), and poof the blue idiots with infinite green hand-lasers." },
+  { id: "rick_and_morty_vs_collective", name: "RICK vs THE COLLECTIVE", tag: "3rd-person · Rick & Morty · boss fight", blurb: "You're Rick, storming a vast purple meditation-temple to fight THE COLLECTIVE — a cube-headed cosmic hive-mind. Cross the arena, out-gun its swarming drone-bodies, and blow its colossal meditating core apart to break the hive." },
   { id: "arcfall", name: "ARCFALL", tag: "1st-person · island survival", blurb: "Drop onto a time-fractured daytime island, recover the 12 lost Arcs, and survive the dinosaurs and giant mechs that guard them." },
   { id: "desert-base", name: "NIGHTOPS", tag: "1st-person · night raid", blurb: "Infiltrate a desert military base under cover of night and reach & disarm the bomb before it detonates." },
 ];

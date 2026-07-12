@@ -3,10 +3,12 @@ import { Enemy } from "./actors/enemy.js";
 import { Monster } from "./actors/monster.js";
 import { Robot } from "./actors/robot.js";
 import { Meeseeks } from "./actors/meeseeks.js";
+import { Janus } from "./actors/janus.js";
 
 // spawn the right actor for a spawn spec's `kind` (default: a rifle soldier)
 function makeActor(scene, spawn, level) {
   if (spawn.kind === "meeseeks") return new Meeseeks(scene, spawn, level);
+  if (spawn.kind === "janus") return new Janus(scene, spawn, level); // The Collective — boss core + drones
   if (spawn.kind === "monster" || spawn.kind === "spider" || spawn.kind === "trex") return new Monster(scene, spawn, level);
   if (spawn.kind === "robot" || spawn.kind === "sentry" || spawn.kind === "drone" || spawn.kind === "heavy") return new Robot(scene, spawn, level);
   return new Enemy(scene, spawn, level);
@@ -118,6 +120,8 @@ export class Combat {
       onPlayerHit: (dmg) => this.hooks.onPlayerHit?.(dmg),
       enemyFire: (o) => this.hooks.onEnemyFire?.(o), // enemies call ctx.enemyFire(...) → routes to the runner
       onBossBeam: () => this.hooks.onBossBeam?.(),
+      // the Collective boss summons drones near itself (capped so it never runaway-swarms)
+      spawnDrone: (pos) => { if (this.enemies.filter((e) => e.kind === "janus" && !e.boss && !e.dead).length >= 8) return; const a = Math.random() * 6.28, r = 6 + Math.random() * 7; this.spawnEnemy({ kind: "janus", x: pos.x + Math.cos(a) * r, z: pos.z + Math.sin(a) * r }); },
       airborne: (playerPos.y - groundUnderPlayer) > 20, // flying high (jetpack) — enemies can't hit you
     };
     for (let i = this.enemies.length - 1; i >= 0; i--) {

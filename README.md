@@ -13,13 +13,19 @@ top of it fast.
 > it (it knows about walls, towers, vehicles, islands on purpose); `game/` is a shipped game. Reuse just
 > the engine, the whole kit, or fork a game — see [Architecture](#architecture-at-a-glance).
 
-## Three games, one engine
+## Four games, one engine
 
 **▶ [Play MEESEEKS MAYHEM](https://genie-web-game-engine.up.railway.app/?level=meeseeks_mayhem)** — a *third-person* Rick & Morty romp: you're **Rick**, time is broken (again), and you must recover the **12 white magic rings** while fending off a rain of Mr. Meeseeks — regular, huge, and rare **kaiju-sized giants**. Start with infinite **green hand-lasers**, scavenge real blasters, jet around with **Iron-Man boots + palms**, and poof the blue idiots.
 
 | | |
 |:-:|:-:|
 | ![MEESEEKS MAYHEM — Rick dancing on the deploy screen](media/dance-deploy.jpg) | ![MEESEEKS MAYHEM — third-person gameplay + HUD](media/meeseeks-gameplay.jpg) |
+
+**▶ [Play RICK vs THE COLLECTIVE](https://genie-web-game-engine.up.railway.app/?level=rick_and_morty_vs_collective)** — a *third-person* Rick & Morty **boss fight**: storm a vast purple meditation-temple to face **THE COLLECTIVE**, a cube-headed cosmic hive-mind. Cross the mandala-walled arena, out-gun its swarming drone-bodies, and blow its colossal meditating **core** apart to break the hive — with distinct-coloured energy blasters (green hand-lasers, cyan Photon, hot-pink Tachyon, violet Ion).
+
+| | |
+|:-:|:-:|
+| ![RICK vs THE COLLECTIVE — the meditating core on its dais](media/collective-1.jpg) | ![RICK vs THE COLLECTIVE — the mandala temple arena](media/collective-2.jpg) |
 
 **▶ [Play ARCFALL](https://genie-web-game-engine.up.railway.app/?level=arcfall)** — a *first-person* daytime island survival hunt: drop onto a time-fractured island, recover the **12 lost Arcs**, and survive the dinosaurs and giant mechs that guard them.
 
@@ -33,7 +39,7 @@ top of it fast.
 |:-:|:-:|
 | ![NightOps — the gate](media/nightops-1.jpg) | ![NightOps — the base](media/nightops-2.jpg) |
 
-> All three ship on the same engine + kit — proof it generalizes across views, genres and art styles
+> All four ship on the same engine + kit — proof it generalizes across views, genres and art styles
 > (reuse just `engine/`, the whole `kit/`, or fork a `game/`).
 
 ---
@@ -135,6 +141,7 @@ procedural geometry & canvas textures, Web Audio (synth + decoded tracks). Singl
 ## Credits
 
 - **Rick Sanchez:** UE4-rigged fan model, re-textured + Mixamo-animated (idle/walk/run/gunplay/jump/salsa).
+- **The Collective (Janus Knight):** Meshy-AI-generated model, decimated 340k→13.6k tris + 512px textures for the web.
 - **Player operator (SWAT):** CC0 "Ultimate Modular Men" pack. **Vehicles:** Kenney CC0 Car Kit.
 - **Blasters / ammo:** CC0 low-poly weapon packs. **Helicopters:** procedural.
 - **Music:** "Get Schwifty" / Pacific Rim / Alien Boy (level tracks); Spanish flamenco (lemonmusiclab).

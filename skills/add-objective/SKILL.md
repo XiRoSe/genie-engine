@@ -1,6 +1,6 @@
 ---
 name: add-objective
-description: Use when adding or editing a win/lose goal — collect, defuse, exfil, or a brand-new objective type. Covers the objective module interface, the registry, the runner's win/lose split, and the three shipped objectives.
+description: Use when adding or editing a win/lose goal — collect, defuse, exfil, slay (boss), or a brand-new objective type. Covers the objective module interface, the registry, the runner's win/lose split, and the shipped objectives.
 ---
 
 # Add / edit an objective
@@ -30,6 +30,7 @@ Register it in `src/game/objectives/index.js`:
 export function makeObjective(type, game) {
   if (type === "defuse") return new DefuseObjective(game);
   if (type === "collect") return new CollectObjective(game);
+  if (type === "slay") return new SlayObjective(game);
   return new ExfilObjective(game);            // default
 }
 ```
@@ -37,13 +38,17 @@ export function makeObjective(type, game) {
 A level selects it via `config.objective.type` (+ type-specific fields like `count`, `timeLimit`,
 `codeLength`, `maxTries`). No runner edits needed for a new type — just the module + the registry line.
 
-## The three shipped objectives
+## The shipped objectives
 
-- **`collect`** (ARCFALL) — recover all `count` Arcs (`level.arcs`, each beams to the sky). Region-entry banners
-  + per-Arc fanfare; on the last Arc calls `_win({ cinematic: true })` (the shrink-world + victory crawl).
+- **`collect`** (ARCFALL / Meeseeks) — recover all `count` Arcs/Rings (`level.arcs`, each beams to the sky). Region-entry
+  banners + per-Arc fanfare; on the last Arc calls `_win({ cinematic: true })` (the shrink-world + victory crawl).
 - **`defuse`** (NightOps) — reach the `bomb(x,z)`, enter the code before `timeLimit`; a wrong-attempt limit calls
   `_detonate()`. Uses a self-working "mentalist" code puzzle.
 - **`exfil`** — clear every enemy, then walk into the `objective(x,z,r)` flag radius.
+- **`slay`** (Rick vs The Collective) — win when the single **boss** enemy dies. Latches the first `combat.enemies`
+  actor with `.boss === true`, shows a live boss-HP % via `hud.setCounter`, and calls `_win({ cinematic:true })`
+  when `boss.dead`. The level marks its boss with a spawn `{ kind, boss:true }` pushed straight to `enemySpawns`
+  (bypass `b.enemy()`, which would shove it off its dais). Config: `objective:{ type:"slay", noun, startLabel, startSub }`.
 
 ## Notes
 

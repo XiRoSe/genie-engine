@@ -13,6 +13,7 @@ import { LaserSight } from "./engine/laser-sight.js";
 import { trackStart, trackEnd } from "./engine/analytics.js";
 import { makeRick } from "./game/actors/rick.js";
 import { rickMortyJobs } from "./game/actors/rickmorty-assets.js";
+import { collectiveJobs } from "./game/actors/collective-assets.js";
 import { LevelBuilder } from "./kit/level-builder.js";
 import { Destructibles } from "./kit/destructibles.js";
 // game — this game's content + rules
@@ -149,6 +150,7 @@ class Game {
     const jobs = [preloadEnemies(), preloadHeli(), preloadOperator(), preloadVehicles(), preloadPickups(), preloadWeapons(), preloadCreatures(), preloadNature(), preloadFpWeapons(), preloadBuildings(),
       this.audio.clipsReady || Promise.resolve()]; // also wait for all audio (incl. the Pacific Rim + Alien Boy tracks) so music is ready the moment the mission begins
     if (this.cfg.view === "third") jobs.push(...rickMortyJobs()); // Rick + Meeseeks GLBs as separate jobs (bar advances per-file)
+    if (this.levelDef.id === "rick_and_morty_vs_collective") jobs.push(...collectiveJobs()); // the Janus Knight / Collective model
     let done = 0; this.hud.setLoadingProgress(0, jobs.length + 1);
     jobs.forEach((p) => p.then(() => this.hud.setLoadingProgress(++done, jobs.length + 1)));
     await Promise.all(jobs);
@@ -277,13 +279,13 @@ class Game {
       ? new DropPodIntro(this.scene, this.camera, sp, groundY, this.hero, this.vfx, this.audio,
         () => { this.hud._shake = Math.max(this.hud._shake || 0, 28); this.audio.stopDropWhoosh?.(); }, // impact: shake + cut the falling whoosh
         () => { this.voice.deploy(); this.audio.stopLobbyMusic?.(); this.audio.startBattleMusic?.(); this.hud.showCrawl(
-          this._thirdPerson ? "MEESEEKS MAYHEM" : "ARCFALL",
-          this._thirdPerson ? RICK_INTRO_CRAWL : [ // Rick level gets Rick's own broke-time-again crawl
+          this.cfg.crawlTitle || (this._thirdPerson ? "MEESEEKS MAYHEM" : "ARCFALL"),
+          this.cfg.introCrawl || (this._thirdPerson ? RICK_INTRO_CRAWL : [ // per-level crawl; Rick's meeseeks level falls back to the broke-time crawl
             "An unexpected <b>anomaly</b> has shattered <b>TIME</b> itself.",
             "The twelve <b>ARCS</b> that anchor the timeline now lie scattered across a broken island — torn loose from their own eras.",
             "Beasts, war-machines and lost soldiers from every age are stranded here, and they guard the fragments.",
             "Recover all twelve Arcs to <b>repair time</b> — and return to your own.",
-          ], 21000); }, // 1.5x slower scroll — readable
+          ]), 21000); }, // 1.5x slower scroll — readable
         () => { this.hud.hideCrawl(); this.audio.stopBattleMusic?.(); this.audio.dropWhoosh?.(); }) // crawl ends → music cuts, the capsule PLUMMETS with a huge whoosh
       : style === "parachute"
         ? new ParachuteIntro(this.scene, this.camera, sp, groundY, this.hero)
@@ -381,7 +383,7 @@ class Game {
       cam.position.y += dt * 10; cam.rotation.y += dt * 0.18; cam.updateMatrixWorld(true);
       if (this._winT >= 3.2) {
         this._winPhase = "crawl"; this._winT = 0;
-        this.hud.showEndCrawl(this._thirdPerson ? "TIME, UN-BROKEN" : "A NEW DAWN", this._thirdPerson ? RICK_VICTORY_CRAWL : VICTORY_CRAWL, () => this.hud.showEndButton());
+        this.hud.showEndCrawl(this.cfg.victoryTitle || (this._thirdPerson ? "TIME, UN-BROKEN" : "A NEW DAWN"), this.cfg.victoryCrawl || (this._thirdPerson ? RICK_VICTORY_CRAWL : VICTORY_CRAWL), () => this.hud.showEndButton());
       }
     }
     // "crawl" phase: the CSS-animated starfield crawl runs itself; the Redeploy button appears via the onDone callback
@@ -490,8 +492,8 @@ class Game {
       rocket.enemyRocket = true; rocket.radius = 5 * (1 + (s - 1) * 0.4); rocket.playerDmg = o.dmg || 30;
       this._projectiles.push(rocket);
       this.audio.explosion?.();
-    } else { // energy LASER bolt (green) — Meeseeks fire lasers, not bullets; thickness scales with size
-      this.vfx.laserBeam(from, to, 0x66ff44, s);
+    } else { // energy LASER bolt — Meeseeks fire green; other levels can tint (the Collective fires purple)
+      this.vfx.laserBeam(from, to, o.color || this.cfg.enemyBolt || 0x66ff44, s);
       this._onPlayerHit(o.dmg || 7);
       this.audio.zap?.();
     }
@@ -989,7 +991,8 @@ class Game {
     // enemy reinforcements: drop a fresh enemy from the sky (every 2s — constant Meeseeks rain)
     this._reinfT = (this._reinfT || 0) + dt;
     const reinfEvery = this.cfg.reinforce === "meeseeks" ? 2 : 5;
-    if (this._reinfT >= reinfEvery && this.combat.enemies.filter((e) => !e.dead).length < 60) { this._reinfT = 0; this._dropReinforcement(); }
+    // "none" = no sky reinforcements (e.g. the Collective arena, where the boss summons its own drones)
+    if (this.cfg.reinforce !== "none" && this._reinfT >= reinfEvery && this.combat.enemies.filter((e) => !e.dead).length < 60) { this._reinfT = 0; this._dropReinforcement(); }
     this._updateReinforcements(dt);
     this.level.updateDynamics(dt); // explosion-flung props (barrels, etc.)
 
