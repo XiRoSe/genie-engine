@@ -217,6 +217,51 @@ export function buildCollectiveArena(b) {
   for (const r of [22, 32, 44, 56]) { const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 1.0, 10, 64), ringMat); ring.position.set(0, haloY, haloZ - 0.6); scene.add(ring); b._collectiveRings.push(ring); }
   const coreDisc = new THREE.Mesh(new THREE.CircleGeometry(16, 48), addGlow(0xffc0f4, 0.5)); coreDisc.position.set(0, haloY, haloZ - 0.2); coreDisc.rotation.y = Math.PI; scene.add(coreDisc);
 
+  // ── 7b. GAMEPLAY STRUCTURES — the Collective's hive, all with CORRECT collision so the player can use them.
+  //    ONLY these + the walls + dais are solid; every floaty decoration above is collision-free. This is the fix
+  //    for "not all is hittable when you stand on them": clean, consistent, purposeful cover + platforms. ──
+
+  // ASSIMILATION PODS: glowing containment capsules (a captive being suspended inside) — solid full-height cover
+  const podMat = mat(0x3a1f66, { roughness: 0.4, metalness: 0.3, emissive: 0x6a2ab0, emissiveIntensity: 0.5 });
+  const podGlass = noOutline(new THREE.MeshBasicMaterial({ color: 0xc060ff, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  const captiveMat = mat(0x160a28, { emissive: 0x9a45e0, emissiveIntensity: 0.7, roughness: 0.5 });
+  const podFig = new THREE.CapsuleGeometry(0.5, 2.0, 4, 8);
+  const makePod = (x, z) => {
+    const g = new THREE.Group(); g.position.set(x, 0, z);
+    const base = cyl(1.9, 2.1, 1.0, 0, 12, { mat: podMat }); base.position.y = 0.5; g.add(base);
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(1.55, 1.55, 5.2, 16, 1, true), podGlass); tube.position.y = 3.7; g.add(tube);
+    const cap = cyl(1.75, 1.75, 0.7, 0, 12, { mat: podMat }); cap.position.y = 6.6; g.add(cap);
+    const fig = new THREE.Mesh(podFig, captiveMat); fig.position.y = 3.6; fig.rotation.x = 0.1; g.add(fig); // suspended captive
+    scene.add(g);
+    b.collide(x, z, 3.6, 3.6, 6.8); b.solidMeshes.push(g); // solid cover — can't walk or shoot through
+  };
+  for (const [x, z] of [[-28, 18], [28, 18], [-28, 52], [28, 52], [-46, -22], [46, -22]]) makePod(x, z);
+
+  // RAISED PLATFORMS: solid slabs (glowing rim) you JETPACK onto for vantage — correct standable top
+  const platMat = mat(0x4a2d84, { roughness: 0.7, emissive: 0x3a1a70, emissiveIntensity: 0.45 });
+  const makePlatform = (x, z, size, top) => {
+    const slab = box(size, 1.4, size, 0, { mat: platMat }); slab.position.set(x, top - 0.7, z); scene.add(slab);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(size * 0.62, 0.16, 8, 4), addGlow(EDGE, 0.8)); rim.rotation.x = Math.PI / 2; rim.rotation.z = Math.PI / 4; rim.position.set(x, top, z); scene.add(rim);
+    b.collide(x, z, size, size, top); b.solidMeshes.push(slab); // stand on top
+  };
+  makePlatform(-74, -6, 18, 9); makePlatform(74, -6, 18, 9); makePlatform(0, -56, 15, 5.5);
+
+  // LOW COVER BLOCKS: chest-high solid cover down the central approach (duck behind / mount)
+  const coverMat = mat(0x40265f, { roughness: 0.6, emissive: 0x2a1050, emissiveIntensity: 0.4 });
+  for (const [x, z] of [[-15, 2], [15, 2], [-22, 34], [22, 34], [0, -28]]) {
+    const blk = box(3.6, 2.3, 3.6, 0, { mat: coverMat }); blk.position.set(x, 1.15, z); scene.add(blk);
+    const trim = new THREE.Mesh(new THREE.BoxGeometry(3.7, 0.16, 3.7), addGlow(0xff5ad0, 0.7)); trim.position.set(x, 2.3, z); scene.add(trim);
+    b.collide(x, z, 3.6, 3.6, 2.3); b.solidMeshes.push(blk);
+  }
+
+  // ENERGY CONDUITS: glowing veins in the FLOOR radiating from the throne (decorative, flush → NO collision)
+  const conduitMat = addGlow(0xff6ae0, 0.55);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2, len = 70 + (i % 2) * 20;
+    const vein = new THREE.Mesh(new THREE.PlaneGeometry(1.4, len), conduitMat);
+    vein.rotation.x = -Math.PI / 2; vein.rotation.z = a; vein.position.set(Math.sin(a) * len * 0.5, 0.06, DZ - 20 + Math.cos(a) * len * 0.5); scene.add(vein);
+  }
+
   // ── 8. ATMOSPHERE — bright violet haze + 3 scene-wide lights (emissive surfaces do the rest) ──
   scene.fog = new THREE.Fog(0x3a1a72, 150, 620);
   scene.add(new THREE.HemisphereLight(0xd878ff, 0x3a1a5c, 1.5));
@@ -226,7 +271,7 @@ export function buildCollectiveArena(b) {
   // ── 9. SPAWN + bounds + pickups ──
   b.spawnAt(0, -112);
   b.setBounds({ minX: -113, maxX: 113, minZ: -113, maxZ: 113 });
-  const CRATES = [["rifle", -30, -80], ["rifle", 30, -80], ["burst", -60, -40], ["burst", 60, -40], ["plasma", -85, 10], ["plasma", 85, 10], ["minigun", 0, -60], ["launcher", 0, 55], ["ammo", -20, 0], ["ammo", 20, 0], ["ammo", 0, -100], ["health", -55, 70], ["health", 55, 70], ["health", 0, 80]];
+  const CRATES = [["rifle", -34, -85], ["rifle", 34, -85], ["burst", -62, -40], ["burst", 62, -40], ["plasma", -90, 12], ["plasma", 90, 12], ["minigun", 0, -92], ["launcher", 0, 70], ["ammo", -40, 0], ["ammo", 40, 0], ["ammo", 0, -100], ["health", -60, 74], ["health", 60, 74], ["health", 0, 88]];
   for (const [kind, x, z] of CRATES) b.giftCrate(x, z, kind);
 
   return {
