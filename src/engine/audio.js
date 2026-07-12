@@ -429,25 +429,38 @@ export class Audio {
   }
   stopSalsaMusic() { const m = this._salsa; if (!m) return; this._salsa = null; m.stopped = true; if (m.interval) clearInterval(m.interval); const t = this.ctx.currentTime; m.bus.gain.cancelScheduledValues(t); m.bus.gain.setValueAtTime(m.bus.gain.value, t); m.bus.gain.linearRampToValueAtTime(0, t + 0.5); if (m.src) { try { m.src.stop(t + 0.6); } catch (e) { /* already stopped */ } } }
 
-  // ── SPACE-SCIFI AMBIENT for the Collective temple (deploy screen + gameplay). Evolving detuned pad swept by a
-  // slow filter LFO + a deep sub drone + shimmering high bells. All synth (no asset). Loops until stopSpaceMusic() ──
+  // ── THRILLING SPACE-SCIFI for the Collective temple (deploy screen + boss fight). A cosmic bed (sub drone +
+  // slow-swept detuned pad) UNDER a driving engine: a four-on-the-floor kick, a pulsing synth bass, and a fast
+  // minor 16th-note tension arpeggio — so it propels the fight instead of just floating. Loops until stop. ──
   startSpaceMusic() {
     if (!this.ctx || this._space) return;
     const ctx = this.ctx, bus = ctx.createGain(); bus.gain.value = 0; bus.connect(this.master);
-    bus.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 2.2);
+    bus.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 1.5);
     const f = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
     const m = { bus, stopped: false, interval: null, nodes: [] }; this._space = m;
-    // deep sub drone: root A1 + a fifth E2 (the cosmic hum)
-    for (const midi of [33, 40]) { const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = f(midi); const g = ctx.createGain(); g.gain.value = midi === 33 ? 0.5 : 0.2; o.connect(g); g.connect(bus); o.start(); m.nodes.push(o, g); }
-    // evolving PAD: detuned saws (Am9) through a lowpass swept by a very slow LFO → a breathing nebula texture
-    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 480; lp.Q.value = 7; lp.connect(bus);
-    const lfo = ctx.createOscillator(); lfo.type = "sine"; lfo.frequency.value = 0.045; const lfoG = ctx.createGain(); lfoG.gain.value = 360; lfo.connect(lfoG); lfoG.connect(lp.frequency); lfo.start(); m.nodes.push(lfo, lfoG);
-    const pad = ctx.createGain(); pad.gain.value = 0.11; pad.connect(lp);
-    for (const midi of [57, 60, 64, 67, 71]) for (const det of [-1, 1]) { const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = f(midi) * (1 + det * 0.0012); o.connect(pad); o.start(); m.nodes.push(o); }
-    // shimmering high bells: random A-minor-pentatonic notes with a long decay, sprinkled on an interval
-    const penta = [69, 72, 74, 76, 79, 81, 84], bell = (midi) => { const t = ctx.currentTime + 0.05; const o = ctx.createOscillator(); o.type = "triangle"; o.frequency.value = f(midi); const o2 = ctx.createOscillator(); o2.type = "sine"; o2.frequency.value = f(midi) * 2.01; const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.08, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.6); o.connect(g); o2.connect(g); g.connect(bus); o.start(t); o2.start(t); o.stop(t + 3.7); o2.stop(t + 3.7); };
-    const tick = () => { if (m.stopped) return; if (Math.random() < 0.72) bell(penta[Math.floor(Math.random() * penta.length)]); };
-    tick(); m.interval = setInterval(tick, 2500);
+    // deep sub drone (root A1 + fifth E2) — the cosmic bed
+    for (const midi of [33, 40]) { const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = f(midi); const g = ctx.createGain(); g.gain.value = midi === 33 ? 0.34 : 0.14; o.connect(g); g.connect(bus); o.start(); m.nodes.push(o, g); }
+    // evolving PAD (detuned saws through a slowly-swept lowpass) — the breathing nebula
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 620; lp.Q.value = 6; lp.connect(bus);
+    const lfo = ctx.createOscillator(); lfo.type = "sine"; lfo.frequency.value = 0.06; const lfoG = ctx.createGain(); lfoG.gain.value = 460; lfo.connect(lfoG); lfoG.connect(lp.frequency); lfo.start(); m.nodes.push(lfo, lfoG);
+    const pad = ctx.createGain(); pad.gain.value = 0.05; pad.connect(lp);
+    for (const midi of [57, 60, 64, 67]) for (const det of [-1, 1]) { const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = f(midi) * (1 + det * 0.0016); o.connect(pad); o.start(); m.nodes.push(o); }
+    // voices
+    const kick = (t) => { const o = ctx.createOscillator(); o.type = "sine"; const g = ctx.createGain(); o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(46, t + 0.11); g.gain.setValueAtTime(0.55, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.2); o.connect(g); g.connect(bus); o.start(t); o.stop(t + 0.22); };
+    const bass = (fr, t, dur, vol) => { const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = fr; const bp = ctx.createBiquadFilter(); bp.type = "lowpass"; bp.frequency.value = 850; bp.Q.value = 7; const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.001, t + dur); o.connect(bp); bp.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + 0.02); };
+    const arp = (fr, t, dur, vol) => { const o = ctx.createOscillator(); o.type = "square"; o.frequency.value = fr; const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = fr * 2; bp.Q.value = 5; const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.005); g.gain.exponentialRampToValueAtTime(0.001, t + dur); o.connect(bp); bp.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + 0.02); };
+    const bpm = 132, beat = 60 / bpm, bar = beat * 4, six = beat / 4;
+    const roots = [33, 29, 31, 33];                                  // A1 · F1 · G1 · A1 (dark minor cycle)
+    const sets = [[69, 72, 76, 79], [65, 69, 72, 77], [67, 71, 74, 79], [69, 72, 76, 81]]; // matching arps
+    let i = 0;
+    const playBar = () => {
+      if (m.stopped) return;
+      const t = ctx.currentTime + 0.06, r = roots[i % 4], set = sets[i % 4];
+      for (let bch = 0; bch < 4; bch++) { kick(t + bch * beat); bass(f(r), t + bch * beat, beat * 0.42, 0.3); bass(f(r), t + bch * beat + beat * 0.5, beat * 0.3, 0.17); } // 4-on-the-floor kick + pulsing 8th bass
+      for (let s = 0; s < 16; s++) if (Math.random() < 0.82) { const n = set[s % 4] + (s >= 8 ? 12 : 0); arp(f(n), t + s * six, six * 1.7, 0.075); } // fast tension arp
+      i++;
+    };
+    playBar(); m.interval = setInterval(playBar, bar * 1000);
   }
   stopSpaceMusic() { const m = this._space; if (!m) return; this._space = null; m.stopped = true; if (m.interval) clearInterval(m.interval); const t = this.ctx.currentTime; m.bus.gain.cancelScheduledValues(t); m.bus.gain.setValueAtTime(m.bus.gain.value, t); m.bus.gain.linearRampToValueAtTime(0, t + 1.2); for (const n of m.nodes) { try { if (n.stop) n.stop(t + 1.3); } catch (e) { /* already stopped */ } } }
 

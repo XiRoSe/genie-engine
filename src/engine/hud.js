@@ -412,12 +412,12 @@ export class HUD {
   }
   hideDefuse() { this.root.querySelector("#defuse").classList.add("hidden"); }
 
-  showLoading() {
+  showLoading(bgStyle) {
     const o = this._overlay(`<div style="position:relative;z-index:2;text-align:center"><div class="sub">Preparing deployment</div><h1 class="mil-title">Loading<span class="hz">…</span></h1>
       <div class="sub" id="loadpct">0%</div></div>`);
-    // a high aerial view of the island behind the text, with a slow cinematic push-in + a dark vignette so the text reads
+    // a themed backdrop behind the text (per-level), with a slow cinematic push-in + a dark vignette so the text reads
     const bg = document.createElement("div");
-    bg.style.cssText = "position:absolute;inset:0;z-index:0;background:#0c0a16 url('/loading.jpg') center/cover no-repeat;";
+    bg.style.cssText = `position:absolute;inset:0;z-index:0;background:${bgStyle || "#0c0a16 url('/loading.jpg') center/cover no-repeat"};`;
     const veil = document.createElement("div");
     veil.style.cssText = "position:absolute;inset:0;z-index:1;background:radial-gradient(ellipse at 50% 42%,rgba(6,4,16,.30),rgba(6,4,16,.90));";
     o.insertBefore(veil, o.firstChild); o.insertBefore(bg, o.firstChild);

@@ -919,6 +919,9 @@ export class LevelBuilder {
 
   update(t) {
     this._updateSpots(t);
+    // THE COLLECTIVE arena: spin the concentric halo rings (mesmerising meditation aura) + drift the crystals
+    if (this._collectiveRings) for (let i = 0; i < this._collectiveRings.length; i++) this._collectiveRings[i].rotation.z = t * (0.12 + i * 0.06) * (i % 2 ? 1 : -1);
+    if (this._collectiveRocks) for (const r of this._collectiveRocks) { r.rotation.y += 0.0015; r.position.y = r.userData.baseY + Math.sin(t * 0.5 + r.position.x * 0.1) * 1.6; }
     if (this._seaPos) { // smooth rolling swell + analytic normals + bold white XIII foam crests
       const p = this._seaPos, n = this._sea.geometry.attributes.normal, col = this._seaColAttr, base = this._seaBase, R = this._seaR || 200;
       for (let i = 0; i < p.count; i++) {

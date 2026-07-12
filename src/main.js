@@ -145,7 +145,10 @@ class Game {
   }
 
   async _boot() {
-    this.hud.showLoading();
+    // the Collective gets a purple mandala-ray loading backdrop (not the island photo)
+    this.hud.showLoading(this.levelDef.id === "the_collective"
+      ? "repeating-conic-gradient(from 0deg at 50% 44%, rgba(255,140,240,0.13) 0deg 4deg, transparent 4deg 15deg), radial-gradient(circle at 50% 44%, #8a3ad0 0%, #4a1f8c 40%, #1c0a3a 78%, #0c0518 100%)"
+      : undefined);
     this.audio.ensure(); // create the (suspended) audio context now so clips — incl. the heli rotor — preload before Deploy
     // load models progressively (async, off the main thread) with a progress readout
     const jobs = [preloadEnemies(), preloadHeli(), preloadOperator(), preloadVehicles(), preloadPickups(), preloadWeapons(), preloadCreatures(), preloadNature(), preloadFpWeapons(), preloadBuildings(),
