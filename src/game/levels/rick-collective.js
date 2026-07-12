@@ -4,17 +4,21 @@ import { buildCollectiveArena } from "./collective-arena.js";
 // purple meditation-temple. THE COLLECTIVE is a cube-headed Janus-Knight hive: one colossal meditating CORE
 // (the boss) floating on the far dais, plus the drone-bodies it summons. Blow the core apart to break the hive.
 export const rickCollective = {
-  id: "rick_and_morty_vs_collective",
-  name: "RICK vs THE COLLECTIVE",
+  id: "the_collective",
+  name: "THE COLLECTIVE",
   config: {
     view: "third",                                              // 3rd-person Rick (idle/walk/run/gun/dance/jump)
     scene: { sky: "night", fog: { color: 0x2a1440, near: 40, far: 260 }, fov: 75 }, // dark base; the arena repaints a purple haze
+    exposure: 1.7,                                              // BRIGHT neon-purple temple (override the dim night exposure)
+    noStorm: true,                                             // enclosed interior — no lightning (it was also resetting exposure back to dim)
     intro: { enabled: true, style: "droppod", spottedCalloutAt: 4.5 }, // Rick drops into the temple + his own crawl
     objective: { type: "slay", noun: "THE COLLECTIVE", startLabel: "DESTROY THE COLLECTIVE", startSub: "shatter the hive-mind's core" },
     helicopter: { spawnDelay: 99999 },                          // no gunship in the temple
     reinforce: "none",                                          // no sky drops — the boss summons its OWN drones
     enemyBolt: 0xc46bff,                                        // the Collective fires PURPLE psychic bolts
-    music: "schwifty",
+    music: "space",                                             // synth space-scifi ambient during the fight
+    waitingMusic: "space",                                      // ...and on the deploy screen
+    startShowsBoss: true,                                       // the deploy/loading screen looms up at THE COLLECTIVE (not Rick dancing)
     player: { grenades: 4, startLoadout: ["handlaser"], bannedWeapons: ["smg", "laser", "railgun", "flak"] },
     weaponNames: { rifle: "PHOTON CARBINE", minigun: "TACHYON REPEATER", burst: "ION BURSTER", plasma: "PLASMA CANNON", launcher: "FUSION LAUNCHER" },
     crawlTitle: "RICK vs THE COLLECTIVE",

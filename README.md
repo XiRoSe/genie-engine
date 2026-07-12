@@ -21,7 +21,7 @@ top of it fast.
 |:-:|:-:|
 | ![MEESEEKS MAYHEM — Rick dancing on the deploy screen](media/dance-deploy.jpg) | ![MEESEEKS MAYHEM — third-person gameplay + HUD](media/meeseeks-gameplay.jpg) |
 
-**▶ [Play RICK vs THE COLLECTIVE](https://genie-web-game-engine.up.railway.app/?level=rick_and_morty_vs_collective)** — a *third-person* Rick & Morty **boss fight**: storm a vast purple meditation-temple to face **THE COLLECTIVE**, a cube-headed cosmic hive-mind. Cross the mandala-walled arena, out-gun its swarming drone-bodies, and blow its colossal meditating **core** apart to break the hive — with distinct-coloured energy blasters (green hand-lasers, cyan Photon, hot-pink Tachyon, violet Ion).
+**▶ [Play THE COLLECTIVE](https://genie-web-game-engine.up.railway.app/?level=the_collective)** — a *third-person* Rick & Morty **boss fight**: storm a vast enclosed purple meditation-temple to face **THE COLLECTIVE**, a cube-headed cosmic hive-mind. It never fires — it just births endless drone-bodies of itself that swarm, chase and **grab** you. Fight through the horde with distinct-coloured energy blasters (green hand-lasers, cyan Photon, hot-pink Tachyon, violet Ion) and shatter the colossal meditating **core**.
 
 | | |
 |:-:|:-:|

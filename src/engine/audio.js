@@ -429,6 +429,28 @@ export class Audio {
   }
   stopSalsaMusic() { const m = this._salsa; if (!m) return; this._salsa = null; m.stopped = true; if (m.interval) clearInterval(m.interval); const t = this.ctx.currentTime; m.bus.gain.cancelScheduledValues(t); m.bus.gain.setValueAtTime(m.bus.gain.value, t); m.bus.gain.linearRampToValueAtTime(0, t + 0.5); if (m.src) { try { m.src.stop(t + 0.6); } catch (e) { /* already stopped */ } } }
 
+  // ── SPACE-SCIFI AMBIENT for the Collective temple (deploy screen + gameplay). Evolving detuned pad swept by a
+  // slow filter LFO + a deep sub drone + shimmering high bells. All synth (no asset). Loops until stopSpaceMusic() ──
+  startSpaceMusic() {
+    if (!this.ctx || this._space) return;
+    const ctx = this.ctx, bus = ctx.createGain(); bus.gain.value = 0; bus.connect(this.master);
+    bus.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 2.2);
+    const f = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
+    const m = { bus, stopped: false, interval: null, nodes: [] }; this._space = m;
+    // deep sub drone: root A1 + a fifth E2 (the cosmic hum)
+    for (const midi of [33, 40]) { const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = f(midi); const g = ctx.createGain(); g.gain.value = midi === 33 ? 0.5 : 0.2; o.connect(g); g.connect(bus); o.start(); m.nodes.push(o, g); }
+    // evolving PAD: detuned saws (Am9) through a lowpass swept by a very slow LFO → a breathing nebula texture
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 480; lp.Q.value = 7; lp.connect(bus);
+    const lfo = ctx.createOscillator(); lfo.type = "sine"; lfo.frequency.value = 0.045; const lfoG = ctx.createGain(); lfoG.gain.value = 360; lfo.connect(lfoG); lfoG.connect(lp.frequency); lfo.start(); m.nodes.push(lfo, lfoG);
+    const pad = ctx.createGain(); pad.gain.value = 0.11; pad.connect(lp);
+    for (const midi of [57, 60, 64, 67, 71]) for (const det of [-1, 1]) { const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = f(midi) * (1 + det * 0.0012); o.connect(pad); o.start(); m.nodes.push(o); }
+    // shimmering high bells: random A-minor-pentatonic notes with a long decay, sprinkled on an interval
+    const penta = [69, 72, 74, 76, 79, 81, 84], bell = (midi) => { const t = ctx.currentTime + 0.05; const o = ctx.createOscillator(); o.type = "triangle"; o.frequency.value = f(midi); const o2 = ctx.createOscillator(); o2.type = "sine"; o2.frequency.value = f(midi) * 2.01; const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.08, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.6); o.connect(g); o2.connect(g); g.connect(bus); o.start(t); o2.start(t); o.stop(t + 3.7); o2.stop(t + 3.7); };
+    const tick = () => { if (m.stopped) return; if (Math.random() < 0.72) bell(penta[Math.floor(Math.random() * penta.length)]); };
+    tick(); m.interval = setInterval(tick, 2500);
+  }
+  stopSpaceMusic() { const m = this._space; if (!m) return; this._space = null; m.stopped = true; if (m.interval) clearInterval(m.interval); const t = this.ctx.currentTime; m.bus.gain.cancelScheduledValues(t); m.bus.gain.setValueAtTime(m.bus.gain.value, t); m.bus.gain.linearRampToValueAtTime(0, t + 1.2); for (const n of m.nodes) { try { if (n.stop) n.stop(t + 1.3); } catch (e) { /* already stopped */ } } }
+
   startLobbyMusic() {
     if (!this.ctx || this._lobbyMusic) return;
     const ctx = this.ctx, bus = ctx.createGain(); bus.gain.value = 0; bus.connect(this.master);

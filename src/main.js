@@ -76,6 +76,7 @@ class Game {
     this.scene.add(this.camera);
     if (this.cfg.scene.sky === "day") { this.engine.setupDay(this.scene); this.engine.addDayLights(this.scene); }
     else { this.engine.setupNight(this.scene); this.engine.addLights(this.scene); }
+    if (this.cfg.exposure) this.engine.renderer.toneMappingExposure = this.cfg.exposure; // per-level brightness (the Collective temple runs BRIGHT, not the dim night default)
 
     this.level = new LevelBuilder(this.scene, this.cfg.balance); // built in _boot, once assets are loaded
     this.controller = new Controller(this.camera, this.engine.renderer.domElement, this.level);
@@ -150,7 +151,7 @@ class Game {
     const jobs = [preloadEnemies(), preloadHeli(), preloadOperator(), preloadVehicles(), preloadPickups(), preloadWeapons(), preloadCreatures(), preloadNature(), preloadFpWeapons(), preloadBuildings(),
       this.audio.clipsReady || Promise.resolve()]; // also wait for all audio (incl. the Pacific Rim + Alien Boy tracks) so music is ready the moment the mission begins
     if (this.cfg.view === "third") jobs.push(...rickMortyJobs()); // Rick + Meeseeks GLBs as separate jobs (bar advances per-file)
-    if (this.levelDef.id === "rick_and_morty_vs_collective") jobs.push(...collectiveJobs()); // the Janus Knight / Collective model
+    if (this.levelDef.id === "the_collective") jobs.push(...collectiveJobs()); // the Janus Knight / Collective model
     let done = 0; this.hud.setLoadingProgress(0, jobs.length + 1);
     jobs.forEach((p) => p.then(() => this.hud.setLoadingProgress(++done, jobs.length + 1)));
     await Promise.all(jobs);
@@ -190,11 +191,14 @@ class Game {
     this.state = "start";
     if (this._heroLobby) this._showHeroSelect();
     else this.hud.showStart(() => this._deploy(), { title: this.levelDef.name, brief: this.objective.brief() });
-    // Rick's deploy screen: cool SALSA groove while he dances (starts on the first user gesture — audio needs one)
+    // deploy-screen groove: SALSA while Rick dances, or a SPACE-scifi ambient for the Collective temple (per level).
+    // Starts on the first user gesture (audio needs one).
     if (this.cfg.view === "third") {
-      const kickSalsa = () => { if (this.state === "start") { this.audio.resume?.(); this.audio.startSalsaMusic?.(); } window.removeEventListener("pointerdown", kickSalsa); window.removeEventListener("keydown", kickSalsa); };
-      this.audio.resume?.(); this.audio.startSalsaMusic?.(); // try now (works if audio already unlocked)
-      window.addEventListener("pointerdown", kickSalsa); window.addEventListener("keydown", kickSalsa); // otherwise on first interaction
+      const space = this.cfg.waitingMusic === "space";
+      const startWait = () => { this.audio.resume?.(); if (space) this.audio.startSpaceMusic?.(); else this.audio.startSalsaMusic?.(); };
+      const kickWait = () => { if (this.state === "start") startWait(); window.removeEventListener("pointerdown", kickWait); window.removeEventListener("keydown", kickWait); };
+      startWait(); // try now (works if audio already unlocked)
+      window.addEventListener("pointerdown", kickWait); window.addEventListener("keydown", kickWait); // otherwise on first interaction
     }
   }
 
@@ -254,7 +258,7 @@ class Game {
     if (this.state === "intro" || this._introDone) return;
     this._menuLightsOff(); // drop the deploy-screen fill once we commit to the mission
     if (this.playerModel && this.playerModel.setDancing) this.playerModel.setDancing(false); // stop the dance, time to fight
-    this.audio.stopSalsaMusic?.(); // stop the deploy-screen flamenco/salsa (both the cinematic and no-cinematic paths)
+    this.audio.stopSalsaMusic?.(); this.audio.stopSpaceMusic?.(); // stop the deploy-screen groove (salsa OR space) — both paths
     trackStart(this.levelDef.id || this.levelDef.name, this.levelDef.name); // count a play for THIS game (the moment they commit)
     if (!this.cfg.intro.enabled) { // NO cinematic — drop straight into the fight with a dramatic Pacific Rim swell
       this._introDone = true;
@@ -333,11 +337,13 @@ class Game {
     this.hud.setGrenades(this.grenades);
     this.touch.show();
     this.audio.stopDropWhoosh?.(); // safety: ensure the plummet whoosh isn't still ringing
-    this.audio.stopLobbyMusic?.(); this.audio.stopSalsaMusic?.();
+    this.audio.stopLobbyMusic?.(); this.audio.stopSalsaMusic?.(); this.audio.stopSpaceMusic?.();
+    // gameplay track: a "space" level loops the synth space-ambient; everything else plays its per-level MP3
+    const startGameTrack = () => { this.audio.stopBattleMusic?.(); if (this.cfg.music === "space") this.audio.startSpaceMusic?.(); else this.audio.startGameMusic?.(this.cfg.music); };
     if (this._dramaticStart) { // Rick deploy (no cinematic): dramatic Pacific Rim swell, THEN the in-game track
       this._dramaticStart = false; this.audio.startBattleMusic?.();
-      clearTimeout(this._toGameMusic); this._toGameMusic = setTimeout(() => { if (this.state === "play") { this.audio.stopBattleMusic?.(); this.audio.startGameMusic?.(this.cfg.music); } }, 16000);
-    } else { this.audio.stopBattleMusic?.(); this.audio.startGameMusic?.(this.cfg.music); } // gameplay loop (per-level track)
+      clearTimeout(this._toGameMusic); this._toGameMusic = setTimeout(() => { if (this.state === "play") startGameTrack(); }, 16000);
+    } else startGameTrack(); // gameplay loop (per-level track)
     if (!this._deployed) { this._deployed = true; this.voice.deploy(); this._timeLeft = 300; } // 5:00 mission clock
     this.state = "play";
   }
@@ -479,6 +485,22 @@ class Game {
   }
   _menuLightsOff() { if (this._menuKey) this._menuKey.visible = this._menuFill.visible = false; }
 
+  // Collective deploy screen: the camera looms up at THE COLLECTIVE floating over its dais (in place of Rick's dance),
+  // slowly orbiting so the loading/start screen shows the boss + its mandala halo. Rick is hidden.
+  _bossMenuPose(dt, t) {
+    const boss = this._menuBoss || (this._menuBoss = this.combat && this.combat.enemies.find((e) => e.boss));
+    if (!boss) { this._rickMenuPose(dt, t); return; } // fallback until the boss actor exists
+    if (this.playerModel) this.playerModel.group.visible = false;   // hide Rick — this screen is the Collective's
+    const bx = boss.pos.x, bz = boss.pos.z, cy = boss.floatH + boss.sc * 1.35; // eye/chest height on the floating core
+    boss.group.position.set(bx, boss.floatH + Math.sin(t * 0.6) * 1.6, bz);    // its update() doesn't run pre-play → hover it here
+    boss.group.rotation.y = Math.PI;                                // face the entrance (toward the camera)
+    if (boss._halo) boss._halo.rotation.z += dt * 0.5;
+    const R = 78 + Math.sin(t * 0.18) * 10;                          // slow dolly in/out
+    this.camera.position.set(bx + Math.sin(t * 0.13) * 26, 24, bz - R); // orbit gently in front of (−Z side of) the core
+    this.camera.lookAt(bx, cy, bz);
+    if (Math.abs(this.camera.fov - 58) > 0.01) { this.camera.fov = 58; this.camera.updateProjectionMatrix(); }
+  }
+
   // a ranged enemy (e.g. a gun/rocket Meeseeks) fires at the player. o = { from:{x,y,z}, to:{x,y,z}, kind, dmg }
   _enemyFire(o) {
     const from = new THREE.Vector3(o.from.x, o.from.y, o.from.z);
@@ -492,6 +514,16 @@ class Game {
       rocket.enemyRocket = true; rocket.radius = 5 * (1 + (s - 1) * 0.4); rocket.playerDmg = o.dmg || 30;
       this._projectiles.push(rocket);
       this.audio.explosion?.();
+    } else if (o.kind === "orb") { // the Collective's PSYCHIC ORB — a big glowing purple sphere you can SEE flying at you
+      const dir = to.clone().sub(from).normalize();
+      const col = o.color || this.cfg.enemyBolt || 0xc46bff;
+      const core = new THREE.Mesh(new THREE.SphereGeometry(0.55 * s, 16, 12), new THREE.MeshBasicMaterial({ color: col }));
+      const glow = new THREE.Mesh(new THREE.SphereGeometry(1.0 * s, 16, 12), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false }));
+      core.add(glow); core.material.userData.outlineParameters = { visible: false }; glow.material.userData.outlineParameters = { visible: false };
+      const orb = new Projectile(this.scene, core, from.clone().addScaledVector(dir, 1.0 * s), dir.multiplyScalar(34), { gravity: 0, fuse: 6, detonateOnHit: true }); // straight, no drop — a slow-enough, dodgeable psychic bolt
+      orb.enemyRocket = true; orb.radius = 3.4 * (0.7 + s * 0.12); orb.playerDmg = o.dmg || 20; orb.energy = true; orb._orbTrail = col;
+      this._projectiles.push(orb);
+      this.audio.zap?.();
     } else { // energy LASER bolt — Meeseeks fire green; other levels can tint (the Collective fires purple)
       this.vfx.laserBeam(from, to, o.color || this.cfg.enemyBolt || 0x66ff44, s);
       this._onPlayerHit(o.dmg || 7);
@@ -771,8 +803,9 @@ class Game {
         const dx = pp.x - p.pos.x, dy = (pp.y - 0.7) - p.pos.y, dz = pp.z - p.pos.z; // aim at the chest, ~1.7m body radius
         if (dx * dx + dy * dy + dz * dz < 1.7 * 1.7) p.done = true;
       }
-      // ...and on contact with any enemy (rockets/plasma sailed straight through them before)
-      if (p.detonateOnHit && !p.done) {
+      // ...and on contact with any enemy (rockets/plasma sailed straight through them before). ENEMY projectiles
+      // (Meeseeks rockets, the Collective's orbs) skip this — they must fly PAST their firer/allies to reach Rick.
+      if (p.detonateOnHit && !p.done && !p.enemyRocket) {
         for (const e of this.combat.enemies) {
           if (e.dead) continue;
           // detonation volume scales with the target — huge/giant Meeseeks are wide + tall, so a fixed 2.6m radius
@@ -786,8 +819,10 @@ class Game {
         }
       }
       if (p.done) {
-        if (p.enemyRocket) { // a Meeseeks rocket — explode + damage RICK if he's in the blast (not the Meeseeks)
-          const c = p.pos.clone(); this.vfx.explosion(c, 1.2); this.vfx._fireball?.(c, 0.9); this.audio.explosion?.();
+        if (p.enemyRocket) { // an enemy projectile — explode + damage RICK if he's in the blast (not the firer)
+          const c = p.pos.clone();
+          if (p.energy) { this.vfx.energyBoom?.(c, 1.1); this.audio.zap?.(); } // the Collective's psychic orb → purple energy burst
+          else { this.vfx.explosion(c, 1.2); this.vfx._fireball?.(c, 0.9); this.audio.explosion?.(); }
           const pp = this._thirdPerson ? this.controller.headPos : this.camera.position;
           const R = p.radius || 5, dx = pp.x - c.x, dy = pp.y - c.y, dz = pp.z - c.z;
           if (dx * dx + dy * dy + dz * dz < R * R) { this._onPlayerHit(p.playerDmg || 32); this.hud._shake = Math.max(this.hud._shake || 0, 14); }
@@ -857,10 +892,10 @@ class Game {
     this.hud.update(dt);
     this.vfx.update(dt); // always fade effects (even while paused) so trails clear
     this.engine.driftClouds && this.engine.driftClouds(dt, t); // clouds drift + billow across the sky
-    this.engine.skyStorm && this.engine.skyStorm(dt); // purple-storm lightning
+    if (this.engine.skyStorm && !this.cfg.noStorm) this.engine.skyStorm(dt); // purple-storm lightning (off in the enclosed temple — it also reset exposure)
     this.level.update(t); // wave the objective flag
     this.laser.hide(); // re-shown each frame during play
-    if (this.state === "start" && this.cfg.view === "third" && this.playerModel) { this._rickMenuPose(dt, t); return; } // 3rd-person start screen: Rick posing with a bazooka
+    if (this.state === "start" && this.cfg.view === "third" && this.playerModel) { if (this.cfg.startShowsBoss) this._bossMenuPose(dt, t); else this._rickMenuPose(dt, t); return; } // 3rd-person start screen: Rick posing (or the Collective looming, per level)
     if (this.state === "intro") {
       if (this._thirdPerson && this.playerModel) this.playerModel.group.visible = false; // hidden while the drop-pod falls (FP descent)
       this.intro.update(dt);

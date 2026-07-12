@@ -121,7 +121,7 @@ export class Combat {
       enemyFire: (o) => this.hooks.onEnemyFire?.(o), // enemies call ctx.enemyFire(...) → routes to the runner
       onBossBeam: () => this.hooks.onBossBeam?.(),
       // the Collective boss summons drones near itself (capped so it never runaway-swarms)
-      spawnDrone: (pos) => { if (this.enemies.filter((e) => e.kind === "janus" && !e.boss && !e.dead).length >= 8) return; const a = Math.random() * 6.28, r = 6 + Math.random() * 7; this.spawnEnemy({ kind: "janus", x: pos.x + Math.cos(a) * r, z: pos.z + Math.sin(a) * r }); },
+      spawnDrone: (pos) => { if (this.enemies.filter((e) => e.kind === "janus" && !e.boss && !e.dead).length >= 16) return; const a = Math.random() * 6.28, r = 8 + Math.random() * 10; this.spawnEnemy({ kind: "janus", x: pos.x + Math.cos(a) * r, z: pos.z + Math.sin(a) * r }); },
       airborne: (playerPos.y - groundUnderPlayer) > 20, // flying high (jetpack) — enemies can't hit you
     };
     for (let i = this.enemies.length - 1; i >= 0; i--) {

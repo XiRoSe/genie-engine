@@ -13,19 +13,19 @@ export class Janus {
     this.boss = !!spawn.boss;
     this.weapon = spawn.weapon || "gun";
     this.pos = new THREE.Vector3(spawn.x, 0, spawn.z);
-    this.sc = this.boss ? 7.5 : 1.3;                              // shared model, two very different scales
-    this.hp = spawn.hp || (this.boss ? 4000 : 120);              // the core is brutally tanky
+    this.sc = this.boss ? 15 : 1.3;                              // shared model — the CORE is a colossus (2x bigger)
+    this.hp = spawn.hp || (this.boss ? 5200 : 120);             // the core is brutally tanky
     this.speed = spawn.speed || (this.boss ? 0 : 3.2 + Math.random() * 0.8); // the boss never walks
     this.reach = this.boss ? 999 : 13;                           // drones shoot from ~13 out; the boss fires at any range in aggro
     this.dead = false; this.counted = false; this.removable = false;
-    this.aggro = false; this.aggroRange = spawn.aggro || (this.boss ? 130 : 40);
+    // the boss engages across the WHOLE vast arena (else it just sits there while you're far away = "doesn't shoot")
+    this.aggro = false; this.aggroRange = spawn.aggro || (this.boss ? 340 : 40);
     this.yaw = 0; this._t = Math.random() * 6;
     // levitate: drones hover ~0.3 above the floor; the core floats high over its dais (2.5*sc*0.3)
     this.floatH = this.boss ? (2.5 * this.sc * 0.3) : 0.3;
-    // independent attack cooldowns (boss); single cd for the drone
-    this._atkCd = Math.random() * 1.2;                            // drone bolt cd / boss orb volley cd
-    this._beamCd = 3 + Math.random() * 3;                         // boss beam sweep
-    this._sumCd = 4 + Math.random() * 3;                          // boss drone summon
+    this._atkCd = 1 + Math.random() * 2;                          // drone: OCCASIONAL ranged bolt
+    this._grabCd = Math.random() * 0.6; this._lunge = 0;        // drone: melee GRAB cooldown + lunge timer
+    this._sumCd = 2 + Math.random() * 2;                         // boss: drone-summon cooldown (its only offense)
     this._tmp = new THREE.Vector3(); this._from = new THREE.Vector3(); this._to = new THREE.Vector3();
 
     this.group = new THREE.Group(); this.group.position.copy(this.pos); scene.add(this.group);
@@ -102,54 +102,49 @@ export class Janus {
   // ── DRONE: hover toward Rick, face him, fire energy bolts from ~reach ──────────────────────────────
   _drone(dt, playerPos, dx, dz, d, gy, ctx) {
     this.yaw = Math.atan2(dx, dz); this.group.rotation.y = this.yaw;
-    if (d > this.reach) {                                         // glide across the flat arena, blocked only by tall colliders
+    const GRAB = 2.8;                                             // melee "grab" range
+    if (d > GRAB) {                                              // CHASE Rick across the flat arena (blocked only by tall colliders)
       const step = this.speed * dt, nx = this.pos.x + (dx / d) * step, nz = this.pos.z + (dz / d) * step;
       if (!this._blocked(nx, this.pos.z)) this.pos.x = nx;
       if (!this._blocked(this.pos.x, nz)) this.pos.z = nz;
-    } else if ((this._atkCd -= dt) <= 0) {
-      this._atkCd = 0.9 + Math.random() * 0.3;
-      if (!ctx.airborne && !this.level.segmentBlocked?.(this.pos.x, this.pos.z, playerPos.x, playerPos.z)) {
-        const my = gy + this.floatH + 1.1 * this.sc;             // fire from chest height on the floating body
-        const fx = this.pos.x + (dx / d) * 0.6 * this.sc, fz = this.pos.z + (dz / d) * 0.6 * this.sc;
-        ctx.enemyFire?.({ from: { x: fx, y: my, z: fz }, to: { x: playerPos.x, y: playerPos.y, z: playerPos.z }, kind: "gun", sc: this.sc, dmg: 8 });
+      // SOMETIMES shoot while closing in — an occasional purple bolt at mid range (long cd + a coin-flip = "sometimes")
+      if (d < this.reach && (this._atkCd -= dt) <= 0) {
+        this._atkCd = 2.2 + Math.random() * 2.0;
+        if (Math.random() < 0.55 && !ctx.airborne && !this.level.segmentBlocked?.(this.pos.x, this.pos.z, playerPos.x, playerPos.z)) {
+          const my = gy + this.floatH + 1.1 * this.sc, fx = this.pos.x + (dx / d) * 0.6 * this.sc, fz = this.pos.z + (dz / d) * 0.6 * this.sc;
+          ctx.enemyFire?.({ from: { x: fx, y: my, z: fz }, to: { x: playerPos.x, y: playerPos.y, z: playerPos.z }, kind: "gun", sc: this.sc, dmg: 7 });
+        }
       }
+    } else if ((this._grabCd -= dt) <= 0) {                       // GRAB: latch onto Rick — a hard melee lunge + claw flash + shake
+      this._grabCd = 1.0 + Math.random() * 0.5;
+      ctx.onPlayerHit?.(14);
+      const gp = this._tmp.set(playerPos.x, playerPos.y + 0.3, playerPos.z);
+      ctx.vfx?._flash?.(gp, 1.4, 0xd06bff); ctx.vfx?._embers?.(gp, 0xd06bff, 8, 5);
+      ctx.audio?.hurt?.();
+      this._lunge = 0.12;                                        // brief forward lunge so the grab reads visually
     }
+    if (this._lunge > 0) { this._lunge -= dt; this.pos.x += (dx / d) * dt * 6; this.pos.z += (dz / d) * dt * 6; } // snap toward Rick on the grab
     this._hover(gy);
   }
 
-  // ── BOSS: levitate in place, slow-yaw to face Rick, three independent attacks ───────────────────────
+  // ── BOSS: a pure SUMMONER — it never shoots; it looms, meditates, and endlessly births drone-bodies of itself
+  // that swarm and chase Rick. The whole threat is the hive it spawns. ─────────────────────────────────────────
   _boss(dt, playerPos, dx, dz, d, gy, ctx) {
     // slow, menacing yaw lerp (yaw only) toward the player
-    let dy = Math.atan2(dx, dz) - this.yaw; while (dy > Math.PI) dy -= Math.PI * 2; while (dy < -Math.PI) dy += Math.PI * 2;
-    this.yaw += dy * Math.min(1, dt * 0.9); this.group.rotation.y = this.yaw;
+    let dyaw = Math.atan2(dx, dz) - this.yaw; while (dyaw > Math.PI) dyaw -= Math.PI * 2; while (dyaw < -Math.PI) dyaw += Math.PI * 2;
+    this.yaw += dyaw * Math.min(1, dt * 0.9); this.group.rotation.y = this.yaw;
 
     const cy = gy + this.floatH + 1.35 * this.sc;                 // chest / eye height on the floating core
-    const inRange = d <= this.aggroRange;
-
-    // 1) PSYCHIC ORB VOLLEY — 1..3 slightly-spread energy bolts
-    if (inRange && (this._atkCd -= dt) <= 0) {
-      this._atkCd = 2.2 + Math.random() * 0.6;
-      const n = 1 + (Math.random() * 3 | 0);                      // 1..3
-      for (let i = 0; i < n; i++) {
-        const spread = (i - (n - 1) / 2) * 2.2;                   // fan the bolts out a little around the player
-        ctx.enemyFire?.({ from: { x: this.pos.x, y: cy, z: this.pos.z }, to: { x: playerPos.x + spread, y: playerPos.y, z: playerPos.z + spread * 0.4 }, kind: "gun", sc: this.sc, dmg: 24 });
+    // SUMMON: birth 1-2 drones near the core on a short cooldown (the runner caps the live swarm size)
+    if ((this._sumCd -= dt) <= 0) {
+      this._sumCd = 2.4 + Math.random() * 1.6;
+      if (ctx.spawnDrone) {
+        const n = 1 + (Math.random() * 2 | 0);                    // 1..2 at a time → a persistent, growing swarm
+        for (let i = 0; i < n; i++) ctx.spawnDrone(this.pos);
+        ctx.vfx?._flash?.(new THREE.Vector3(this.pos.x, cy, this.pos.z), 3 * this.sc * 0.25, 0xd06bff); // birth flash
+        ctx.audio?.zap?.();
       }
     }
-
-    // 2) BEAM SWEEP — screen-shake hook + a heavy bolt, plus an optional thick persistent ray
-    if (inRange && (this._beamCd -= dt) <= 0) {
-      this._beamCd = 6 + Math.random() * 1.5;
-      ctx.onBossBeam?.();
-      ctx.enemyFire?.({ from: { x: this.pos.x, y: cy, z: this.pos.z }, to: { x: playerPos.x, y: playerPos.y, z: playerPos.z }, kind: "gun", sc: this.sc, dmg: 40 });
-      if (ctx.vfx?.bossBeam) ctx.vfx.bossBeam(this._from.set(this.pos.x, cy, this.pos.z), this._to.set(playerPos.x, playerPos.y, playerPos.z));
-    }
-
-    // 3) SUMMON — spawn a drone near the core (only if the runner wired the callback)
-    if ((this._sumCd -= dt) <= 0) {
-      this._sumCd = 7 + Math.random() * 1.5;
-      if (ctx.spawnDrone) { ctx.spawnDrone(this.pos); ctx.vfx?._flash?.(new THREE.Vector3(this.pos.x, cy, this.pos.z), 3 * this.sc, 0xd06bff); }
-    }
-
     if (this._halo) this._halo.rotation.z += dt * 0.8;            // gently spin the glowing halo
     this._hover(gy);
   }

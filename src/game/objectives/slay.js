@@ -13,8 +13,9 @@ export class SlayObjective {
   brief() {
     return this.game.cfg.briefText ||
       `<b>THE COLLECTIVE</b> — a hive-mind of cube-headed cosmic freaks — wants to assimilate every Rick in the ` +
-      `multiverse. Its meditating <b>core</b> floats on the far dais, spawning drone-bodies and hurling psychic ` +
-      `energy. Grab a blaster, cross the temple, and <b>blow the core apart</b> to break the hive.`;
+      `multiverse. Its meditating <b>core</b> floats on the far dais and never fires — instead it endlessly ` +
+      `births <b>drone-bodies</b> of itself that swarm, chase and <b>grab</b> you. Fight through the horde, cross ` +
+      `the temple, and <b>blow the core apart</b> to break the hive.`;
   }
 
   onPlayStart() {
