@@ -78,6 +78,8 @@ class Game {
     if (this.cfg.scene.sky === "day") { this.engine.setupDay(this.scene); this.engine.addDayLights(this.scene); }
     else { this.engine.setupNight(this.scene); this.engine.addLights(this.scene); }
     if (this.cfg.exposure) this.engine.renderer.toneMappingExposure = this.cfg.exposure; // per-level brightness (the Collective temple runs BRIGHT, not the dim night default)
+    this.engine.setGrade?.(this.cfg.grade); // per-level AAA look (bloom/grade/vignette); omit → tasteful engine default
+    if (this.cfg.outline) this.engine.setOutline?.(this.cfg.outline.thickness, this.cfg.outline.alpha);
 
     this.level = new LevelBuilder(this.scene, this.cfg.balance); // built in _boot, once assets are loaded
     this.controller = new Controller(this.camera, this.engine.renderer.domElement, this.level);
@@ -130,6 +132,7 @@ class Game {
     this.shotsHit = 0;
     this.baseFov = this.cfg.scene.fov;
     this._fovKick = 0;
+    this._hitStop = 0; // AAA hit-stop timer (micro-freeze on impactful hits/kills)
     this.combat = null;
 
     this.engine.setActive(this.scene, this.camera);
@@ -187,7 +190,8 @@ class Game {
       onPlayerHit: (dmg) => this._onPlayerHit(dmg),
       onEnemyFire: (o) => this._enemyFire(o), // ranged enemies (gun/rocket Meeseeks) shoot at the player
       onBossBeam: () => { this.hud._shake = Math.max(this.hud._shake || 0, 22); }, // GUARDIAN beam screen shake
-      onKill: (count, left) => { this.hud.killFeed(this.cfg.messages.hostileDown); this.hud.setHostiles(left); this.voice.enemyDown(); },
+      onKill: (count, left) => { this.hud.killFeed(this.cfg.messages.hostileDown); this.hud.setHostiles(left); this.voice.enemyDown(); this._hitStop = Math.max(this._hitStop || 0, 0.045); this._fovKick = Math.min(this._fovKick + 1.2, 6); this.hud._shake = Math.max(this.hud._shake || 0, 8); }, // punchy kill feedback: hit-stop + FOV punch + shake
+
       onHitmarker: (killed) => { this.shotsHit++; this.hud.hitmarker(killed); this.audio.hitmarker(killed); },
       onExplosive: (rec, units) => this.destructibles.damageExplosive(rec, units),
       onVehicleHit: (rec, units) => this.destructibles.damageVehicle(rec, units),
@@ -899,6 +903,8 @@ class Game {
   }
 
   update(dt, t) {
+    // AAA HIT-STOP: a micro-freeze right after an impactful hit/kill so it BITES (real dt drives the timer)
+    if (this._hitStop > 0) { this._hitStop -= dt; dt *= 0.06; }
     this.hud.update(dt);
     this.vfx.update(dt); // always fade effects (even while paused) so trails clear
     this.engine.driftClouds && this.engine.driftClouds(dt, t); // clouds drift + billow across the sky

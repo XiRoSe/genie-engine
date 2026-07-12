@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OutlineEffect } from "three/addons/effects/OutlineEffect.js";
+import { PostFX } from "./postfx.js";
 import { COLORS } from "./primitives.js";
 
 // Lightweight renderer: direct render (no post), PBR via image-based lighting.
@@ -16,13 +17,25 @@ export class Engine {
     this.renderer.toneMappingExposure = 0.85; // kept a bit dark for mood
     container.appendChild(this.renderer.domElement);
 
-    // comic/anime "XIII" look: bold black ink outlines around everything (cel-shaded edges)
-    this.outline = new OutlineEffect(this.renderer, { defaultThickness: 0.0042, defaultColor: [0, 0, 0], defaultAlpha: 0.9 });
+    // comic/anime "XIII" look: BOLD black ink outlines around everything (cel-shaded edges)
+    this.outline = new OutlineEffect(this.renderer, { defaultThickness: 0.0058, defaultColor: [0, 0, 0], defaultAlpha: 0.95 });
+
+    // AAA post-processing (bloom + colour-grade + vignette on top of the ink outlines). ?fx=off falls back to
+    // the plain outline render for low-end devices / debugging.
+    this.postfx = null;
+    try {
+      const off = typeof location !== "undefined" && /[?&]fx=off/.test(location.search);
+      if (!off) this.postfx = new PostFX(this.renderer, this.outline, () => this.active);
+    } catch (e) { this.postfx = null; /* post-fx unsupported → plain render */ }
 
     this.clock = new THREE.Clock();
     window.addEventListener("resize", () => this.resize());
     this.active = null;
   }
+
+  // per-level look (bloom strength/threshold, saturation, contrast, tint, vignette) — see PostFX.configure
+  setGrade(params) { this.postfx?.configure(params); }
+  setOutline(thickness, alpha) { if (thickness != null) this.outline.defaultThickness = thickness; if (alpha != null) this.outline.defaultAlpha = alpha; }
 
   // Baked equirectangular night sky (gradient + stars + big glowing moon),
   // used as the skybox AND the reflection/IBL source.
@@ -272,6 +285,7 @@ export class Engine {
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
     this.renderer.setSize(w, h);
+    this.postfx?.setSize(w, h);
     if (this.active?.camera) { this.active.camera.aspect = w / h; this.active.camera.updateProjectionMatrix(); }
   }
 
@@ -281,7 +295,7 @@ export class Engine {
       const dt = Math.min(this.clock.getDelta(), 0.05);
       const t = this.clock.elapsedTime;
       if (onFrame) onFrame(dt, t);
-      if (this.active) this.outline.render(this.active.scene, this.active.camera);
+      if (this.active) { if (this.postfx) this.postfx.render(dt); else this.outline.render(this.active.scene, this.active.camera); }
     };
     loop();
   }

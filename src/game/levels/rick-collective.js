@@ -11,6 +11,8 @@ export const rickCollective = {
     scene: { sky: "night", fog: { color: 0x2a1440, near: 40, far: 260 }, fov: 75 }, // dark base; the arena repaints a purple haze
     exposure: 1.7,                                              // BRIGHT neon-purple temple (override the dim night exposure)
     noStorm: true,                                             // enclosed interior — no lightning (it was also resetting exposure back to dim)
+    grade: { bloom: 0.82, radius: 0.72, threshold: 0.62, saturation: 1.26, contrast: 1.06, tint: [1.05, 0.97, 1.14], vignette: 0.42 }, // neon bloom + rich violet grade
+    outline: { thickness: 0.007, alpha: 1.0 },                 // bolder ink outlines for the comic-book pop
     intro: { enabled: true, style: "crawl", spottedCalloutAt: 4.5 }, // story crawl only — NO falling-stage animation (it's an enclosed temple)
     objective: { type: "slay", noun: "THE COLLECTIVE", startLabel: "DESTROY THE COLLECTIVE", startSub: "shatter the hive-mind's core" },
     helicopter: { spawnDelay: 99999 },                          // no gunship in the temple
