@@ -200,10 +200,24 @@ export class Controller {
     this.headPos.set(this.pos.x, eyeY, this.pos.z); // the player's head — what enemies/pickups target (both views)
     if (this.view === "third") {
       this._fwd.set(0, 0, -1).applyEuler(this._euler); // full look dir (incl. pitch) for the orbit
-      this.camera.position.set(
-        this.pos.x - this._fwd.x * this.thirdDist + this._right.x * this.thirdSide, // over-the-shoulder so the body doesn't block the crosshair
-        eyeY - this._fwd.y * this.thirdDist + this.thirdLift,
-        this.pos.z - this._fwd.z * this.thirdDist + this._right.z * this.thirdSide);
+      let cx = this.pos.x - this._fwd.x * this.thirdDist + this._right.x * this.thirdSide; // over-the-shoulder so the body doesn't block the crosshair
+      const cy = eyeY - this._fwd.y * this.thirdDist + this.thirdLift;
+      let cz = this.pos.z - this._fwd.z * this.thirdDist + this._right.z * this.thirdSide;
+      // CAMERA COLLISION — keep the orbit cam INSIDE the arena + out of solid props, so it never punches through a
+      // wall and shows the black void behind the box (the bug in enclosed levels like the Collective cube).
+      const hx = this.pos.x, hz = this.pos.z, bnd = this.level.bounds;
+      if (bnd) { const m = 2; cx = Math.max(bnd.minX + m, Math.min(bnd.maxX - m, cx)); cz = Math.max(bnd.minZ + m, Math.min(bnd.maxZ - m, cz)); } // stay inside the walls
+      const cols = this.level.colliders;
+      if (cols) { // pull the cam in if the head→cam line crosses a tall solid (wall / pod / platform)
+        const dx = cx - hx, dz = cz - hz; let safeT = 1;
+        for (let k = 1; k <= 5; k++) {
+          const t = k / 5, px = hx + dx * t, pz = hz + dz * t; let hit = false;
+          for (const c of cols) { if (c.top < eyeY - 1) continue; if (px > c.minX - 0.5 && px < c.maxX + 0.5 && pz > c.minZ - 0.5 && pz < c.maxZ + 0.5) { hit = true; break; } }
+          if (hit) { safeT = Math.max(0.2, (k - 1) / 5); break; }
+        }
+        cx = hx + dx * safeT; cz = hz + dz * safeT;
+      }
+      this.camera.position.set(cx, cy, cz);
     } else {
       this.camera.position.set(this.pos.x, eyeY, this.pos.z);
     }
